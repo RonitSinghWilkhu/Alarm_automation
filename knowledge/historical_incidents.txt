@@ -1,0 +1,191 @@
+--------------------------------------------------
+HISTORICAL INCIDENT: 001
+
+ALARM_TYPE: HIGH_CPU
+
+OBSERVED_SYMPTOMS:
+CPU utilization remained above the configured threshold.
+
+ACTIONS_TAKEN:
+1. Checked CPU utilization.
+2. Identified the process consuming the highest CPU.
+3. Checked for a recent configuration or software change.
+4. Verified whether network services were affected.
+5. Performed the required recovery action.
+6. Monitored CPU utilization after corrective action.
+
+SHELL_COMMANDS_USED:
+top
+ps aux
+uptime
+vmstat
+mpstat
+
+SHELL_SCRIPT_USED:
+No shell script was specified in the supplied runbook or command reference.
+
+RESOLUTION:
+CPU utilization was monitored after the corrective action.
+
+ESCALATION:
+Escalate to the Platform team if CPU utilization remains high or impacts services.
+--------------------------------------------------
+
+--------------------------------------------------
+HISTORICAL INCIDENT: 002
+
+ALARM_TYPE: POWER_FAILURE
+
+OBSERVED_SYMPTOMS:
+Power failure was detected on the network node.
+
+ACTIONS_TAKEN:
+1. Verified the power status of the affected node.
+2. Checked whether the node was reachable.
+3. Checked for multiple power-related alarms on nearby equipment.
+4. Verified backup power or battery status.
+5. Checked whether network services were affected.
+
+SHELL_COMMANDS_USED:
+uptime
+systemctl status
+dmesg
+journalctl -p err
+last reboot
+
+SHELL_SCRIPT_USED:
+No shell script was specified in the supplied runbook or command reference.
+
+RESOLUTION:
+Node and service status were checked after the power-related condition.
+
+ESCALATION:
+Escalate to the Power team if the node remains unavailable.
+--------------------------------------------------
+
+--------------------------------------------------
+HISTORICAL INCIDENT: 003
+
+ALARM_TYPE: HIGH_TEMPERATURE
+
+OBSERVED_SYMPTOMS:
+Equipment temperature remained above the configured threshold.
+
+ACTIONS_TAKEN:
+1. Checked the current temperature reading.
+2. Verified whether the temperature exceeded the configured threshold.
+3. Checked equipment ventilation and cooling conditions.
+4. Checked for additional hardware alarms.
+5. Monitored the temperature after corrective action.
+
+SHELL_COMMANDS_USED:
+sensors
+dmesg
+journalctl -p warning
+uptime
+
+SHELL_SCRIPT_USED:
+No shell script was specified in the supplied runbook or command reference.
+
+RESOLUTION:
+Temperature was monitored after corrective action.
+
+ESCALATION:
+Escalate to the Hardware team if the temperature remains high.
+--------------------------------------------------
+
+--------------------------------------------------
+HISTORICAL INCIDENT: 004
+
+ALARM_TYPE: S1_LINK_DOWN
+
+OBSERVED_SYMPTOMS:
+The S1 interface or connection was unavailable.
+
+ACTIONS_TAKEN:
+1. Verified the S1 interface status.
+2. Checked whether the interface was administratively or operationally down.
+3. Checked for related transport or connectivity alarms.
+4. Verified connectivity between the affected network elements.
+5. Checked for recent configuration changes.
+
+SHELL_COMMANDS_USED:
+ip link
+ip addr
+ping <destination>
+ss -tuln
+ip route
+
+SHELL_SCRIPT_USED:
+No shell script was specified in the supplied runbook or command reference.
+
+RESOLUTION:
+Connectivity was checked after the corrective action.
+
+ESCALATION:
+Escalate to the Transport team if connectivity cannot be restored.
+--------------------------------------------------
+
+--------------------------------------------------
+HISTORICAL INCIDENT: 005
+
+ALARM_TYPE: VSWR_HIGH
+
+OBSERVED_SYMPTOMS:
+The VSWR reading exceeded the configured threshold on a radio connection.
+
+ACTIONS_TAKEN:
+1. Verified the current VSWR reading.
+2. Checked whether the reading exceeded the configured threshold.
+3. Checked antenna and feeder connections.
+4. Checked for related radio or hardware alarms.
+5. Verified whether affected cells were experiencing service degradation.
+
+SHELL_COMMANDS_USED:
+ip link
+dmesg
+journalctl -p warning
+uptime
+
+SHELL_SCRIPT_USED:
+No shell script was specified in the supplied runbook or command reference.
+
+RESOLUTION:
+The VSWR condition was monitored after corrective action.
+
+ESCALATION:
+Escalate to the Radio team if the condition persists.
+--------------------------------------------------
+
+--------------------------------------------------
+HISTORICAL INCIDENT: 006
+
+ALARM_TYPE: CELL_UNAVAILABLE
+
+OBSERVED_SYMPTOMS:
+A network cell was unavailable.
+
+ACTIONS_TAKEN:
+1. Verified the current cell status.
+2. Checked for related radio, transport or power alarms.
+3. Checked whether multiple cells on the same node were affected.
+4. Verified connectivity to the affected network element.
+5. Checked recent configuration or maintenance activity.
+
+SHELL_COMMANDS_USED:
+ping <destination>
+ip link
+ip route
+uptime
+systemctl status
+journalctl -p err
+
+SHELL_SCRIPT_USED:
+No shell script was specified in the supplied runbook or command reference.
+
+RESOLUTION:
+Cell status and network-element connectivity were checked after corrective action.
+
+ESCALATION:
+Escalate to the Radio team if the cell remains unavailable.
+--------------------------------------------------

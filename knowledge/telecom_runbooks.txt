@@ -1,0 +1,124 @@
+RUNBOOK: HIGH_CPU
+
+Alarm Type:
+HIGH_CPU
+
+Description:
+High CPU utilization detected on the network node.
+
+Troubleshooting Steps:
+1. Check the current CPU utilization of the node.
+2. Identify the process or service consuming the highest CPU.
+3. Check whether a recent configuration or software change occurred.
+4. Verify whether the high CPU condition is affecting network services.
+5. Restart the affected service if operational procedures allow it.
+6. Monitor CPU utilization after the corrective action.
+7. Escalate to the Platform team if CPU utilization remains high.
+
+Escalation:
+Assign to Platform team if the condition persists or impacts services.
+
+--------------------------------------------------
+
+RUNBOOK: POWER_FAILURE
+
+Alarm Type:
+POWER_FAILURE
+
+Description:
+Power failure detected on a network node.
+
+Troubleshooting Steps:
+1. Verify the power status of the affected node.
+2. Check whether the node is reachable.
+3. Check for multiple power-related alarms on nearby equipment.
+4. Verify backup power or battery status.
+5. Check whether network services are affected.
+6. Escalate to the Power team if the node remains unavailable.
+
+Escalation:
+Assign to Power team for persistent power-related issues.
+
+--------------------------------------------------
+
+RUNBOOK: HIGH_TEMPERATURE
+
+Alarm Type:
+HIGH_TEMPERATURE
+
+Description:
+High temperature detected on network equipment.
+
+Troubleshooting Steps:
+1. Check the current temperature reading.
+2. Verify whether the temperature exceeds the configured threshold.
+3. Check equipment ventilation and cooling conditions.
+4. Check for additional hardware alarms.
+5. Monitor the temperature after corrective action.
+6. Escalate to the Hardware team if the temperature remains high.
+
+Escalation:
+Assign to Hardware team for persistent temperature issues.
+
+--------------------------------------------------
+
+RUNBOOK: S1_LINK_DOWN
+
+Alarm Type:
+S1_LINK_DOWN
+
+Description:
+S1 interface or connection is unavailable.
+
+Troubleshooting Steps:
+1. Verify the S1 interface status.
+2. Check whether the interface is administratively or operationally down.
+3. Check for related transport or connectivity alarms.
+4. Verify connectivity between the affected network elements.
+5. Check for recent configuration changes.
+6. Escalate to the Transport team if connectivity cannot be restored.
+
+Escalation:
+Assign to Transport team for persistent connectivity issues.
+
+--------------------------------------------------
+
+RUNBOOK: VSWR_HIGH
+
+Alarm Type:
+VSWR_HIGH
+
+Description:
+High Voltage Standing Wave Ratio detected on a radio connection.
+
+Troubleshooting Steps:
+1. Verify the current VSWR reading.
+2. Check whether the reading exceeds the configured threshold.
+3. Check antenna and feeder connections.
+4. Check for related radio or hardware alarms.
+5. Verify whether affected cells are experiencing service degradation.
+6. Escalate to the Radio team if the condition persists.
+
+Escalation:
+Assign to Radio team for persistent VSWR issues.
+
+--------------------------------------------------
+
+RUNBOOK: CELL_UNAVAILABLE
+
+Alarm Type:
+CELL_UNAVAILABLE
+
+Description:
+A network cell is unavailable.
+
+Troubleshooting Steps:
+1. Verify the current cell status.
+2. Check for related radio, transport or power alarms.
+3. Check whether multiple cells on the same node are affected.
+4. Verify connectivity to the affected network element.
+5. Check recent configuration or maintenance activity.
+6. Escalate to the Radio team if the cell remains unavailable.
+
+Escalation:
+Assign to Radio team if the cell remains unavailable.

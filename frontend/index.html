@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Alarm Automation</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <div class="app-shell">
+
+        <!-- ===================== SIDEBAR ===================== -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-top">
+                <div class="sidebar-top">
+                    <div class="brand">
+                        <div class="brand-mark">
+                            <svg viewBox=" 0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                                <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+                            </svg>
+                        </div>
+
+                        <div class="brand-text">
+                            <span class="brand-name">AlarmOps</span>
+                            <span class="brand-sub">Alarm Automation for Operations</span>
+                        </div>
+                    </div>
+                </div>
+                <button class="sidebar-toggle" id="menutoggle" aria-label="Close sidebar" title="Close sidebar">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                        stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                    </svg>
+                </button>
+            </div>
+
+
+            <nav class="side-nav">
+                <span class="nav-label">Overview</span>
+                <a class="nav-item active" href="#dashboard">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                    <span>Dashboard</span>
+                </a>
+                <a class="nav-item" href="#tickets">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v6a2 2 0 0 0 0 4v6H4v-6a2 2 0 0 0 0-4z"></path><path d="M13 5v2"></path><path d="M13 17v2"></path><path d="M13 11v2"></path></svg>
+                    <span>Tickets</span>
+                </a>
+                <a class="nav-item" href="#notifications">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
+                    <span>Notifications</span>
+                    <span class="nav-badge" id="navNotifBadge">0</span>
+                </a>
+
+                <!-- <span class="nav-label">System</span>
+                <a class="nav-item" href="#" onclick="return false;">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4z"></path></svg>
+                    <span>Automation Rules</span>
+                </a>
+                <a class="nav-item" href="#" onclick="return false;">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+                    <span>Settings</span>
+                </a> -->
+            </nav>
+
+            <div class="side-footer">
+                <div class="conn-status" id="connStatus">
+                    <span class="conn-dot"></span>
+                    <span id="connLabel">Connecting…</span>
+                </div>
+            </div>
+        </aside>
+
+        <button class="sidebar-reopen" id="sidebarReopen" aria-label="Open sidebar" title="Open sidebar">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="3" y1="12" x2="21" y2="12"></line>
+                <line x1="3" y1="6" x2="21" y2="6"></line>
+                <line x1="3" y1="18" x2="21" y2="18"></line>
+            </svg>
+        </button>
+
+        <!-- ===================== MAIN ===================== -->
+        <div class="main">
+
+            <!-- TOP BAR -->
+            <header class="topbar">
+
+                <div class="page-heading">
+                    <h1>Alarm Automation Dashboard</h1>
+                    <p>Telecom alarm &amp; ticket management</p>
+                </div>
+
+                <div class="search-box">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                    <input type="text" id="searchInput" placeholder="Search ticket, node, alarm…" autocomplete="off" oninput="filterTickets()">
+                </div>
+
+                <button class="icon-btn" id="refreshBtn" title="Refresh data" aria-label="Refresh">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
+                </button>
+
+                <button class="icon-btn theme-btn" id="darkModeToggle" title="Toggle theme" aria-label="Toggle theme">
+                    <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
+                    <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+                </button>
+
+                <div class="user-menu">
+
+    <button class="user-chip" id="userMenuBtn"
+        type="button"
+        aria-label="Open user menu"
+        aria-expanded="false">
+
+        <div class="avatar">UR</div>
+
+        <div class="user-meta">
+            <span class="user-name">Ericsson User</span>
+            <span class="user-role">User role</span>
+        </div>
+
+        <svg class="user-chevron" viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round">
+            <polyline points="6 9 12 15 18 9"></polyline>
+        </svg>
+
+    </button>
+
+
+    <!-- USER DROPDOWN -->
+    <div class="user-dropdown hidden" id="userDropdown">
+
+        <!-- User information -->
+        <div class="dropdown-user-info">
+
+            <div class="dropdown-avatar">UR</div>
+
+            <div>
+                <strong>Ericsson User</strong>
+                <span>User role</span>
+            </div>
+
+        </div>
+
+
+        <div class="dropdown-divider"></div>
+
+
+        <!-- Profile -->
+        <button class="dropdown-item" type="button">
+
+            <svg viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round">
+
+                <path d="M20 21a8 8 0 0 0-16 0"></path>
+                <circle cx="12" cy="7" r="4"></circle>
+
+            </svg>
+
+            <span>Profile</span>
+
+        </button>
+
+
+        <!-- Account Settings -->
+        <button class="dropdown-item" type="button">
+
+            <svg viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round">
+
+                <circle cx="12" cy="12" r="3"></circle>
+                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82"></path>
+                <path d="M4.27 18.73a2 2 0 0 1 0-2.83"></path>
+                <path d="M4.6 9a1.65 1.65 0 0 0-1.51-1"></path>
+                <path d="M19.4 9a1.65 1.65 0 0 1 1.51 1"></path>
+
+            </svg>
+
+            <span>Account Settings</span>
+
+        </button>
+
+
+        <div class="dropdown-divider"></div>
+
+
+        <!-- Logout -->
+        <button class="dropdown-item logout-item"
+            id="logoutBtn"
+            type="button">
+
+            <svg viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round">
+
+                <path d="M10 17l5-5-5-5"></path>
+                <path d="M15 12H3"></path>
+                <path d="M21 19V5a2 2 0 0 0-2-2h-6"></path>
+
+            </svg>
+
+            <span>Log out</span>
+
+        </button>
+
+    </div>
+
+</div>
+            </header>
+
+            <!-- CONTENT -->
+            <main class="content">
+
+                <!-- ===================== SUMMARY CARDS ===================== -->
+                <section class="summary" id="dashboard">
+                    <div class="summary-card accent-blue">
+                        <div class="card-top">
+                            <span class="card-title">Total Tickets</span>
+                            <span class="card-icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v6a2 2 0 0 0 0 4v6H4v-6a2 2 0 0 0 0-4z"></path></svg>
+                            </span>
+                        </div>
+                        <p class="card-value" id="totalTickets">—</p>
+                        <span class="card-foot">All time</span>
+                    </div>
+
+                    <div class="summary-card accent-green">
+                        <div class="card-top">
+                            <span class="card-title">Open Tickets</span>
+                            <span class="card-icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+                            </span>
+                        </div>
+                        <p class="card-value" id="openTickets">—</p>
+                        <span class="card-foot">Requires attention</span>
+                    </div>
+
+                    <div class="summary-card accent-red">
+                        <div class="card-top">
+                            <span class="card-title">High Impact</span>
+                            <span class="card-icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                            </span>
+                        </div>
+                        <p class="card-value" id="highImpact">—</p>
+                        <span class="card-foot">Critical severity</span>
+                    </div>
+
+                    <div class="summary-card accent-slate">
+                        <div class="card-top">
+                            <span class="card-title">Closed Tickets</span>
+                            <span class="card-icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"></path></svg>
+                            </span>
+                        </div>
+                        <p class="card-value" id="closedTickets">—</p>
+                        <span class="card-foot">Resolved</span>
+                    </div>
+                </section>
+
+                <!-- ===================== TICKETS PANEL ===================== -->
+                <section class="panel" id="tickets">
+                    <div class="panel-header">
+                        <div class="panel-title">
+                            <h2>Active Tickets</h2>
+                            <p>Manage, prioritize and resolve network alarms</p>
+                        </div>
+
+                        <div class="segmented" role="tablist">
+                            <button class="seg active" data-filter="ALL" onclick="setStatusFilter('ALL', this)">All</button>
+                            <button class="seg" data-filter="OPEN" onclick="setStatusFilter('OPEN', this)">Open</button>
+                            <button class="seg" data-filter="CLOSED" onclick="setStatusFilter('CLOSED', this)">Closed</button>
+                        </div>
+                    </div>
+
+                    <!-- hidden select preserves original filter contract -->
+                    <select id="statusFilter" class="visually-hidden" onchange="filterTickets()">
+                        <option value="ALL">All Tickets</option>
+                        <option value="OPEN">Open</option>
+                        <option value="CLOSED">Closed</option>
+                    </select>
+
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Ticket</th>
+
+                                    <th>
+                                        <button
+                                            class="column-filter"
+                                            type="button"
+                                            data-filter-key="node">
+                                            <span>Node</span>
+                                            <span class="filter-arrow">▾</span>
+                                        </button>
+                                    </th>
+
+                                    <th>
+                                        <button
+                                            class="column-filter"
+                                            type="button"
+                                            data-filter-key="alarmType">
+                                            <span>Alarm Type</span>
+                                            <span class="filter-arrow">▾</span>
+                                        </button>
+                                    </th>
+
+                                    <th>
+                                        <button
+                                            class="column-filter"
+                                            type="button"
+                                            data-filter-key="severity">
+                                            <span>Severity</span>
+                                            <span class="filter-arrow">▾</span>
+                                        </button>
+                                    </th>
+                                    <th>
+                                        <button
+                                            class="column-filter"
+                                            type="button"
+                                            data-filter-key="impactLevel">
+                                            <span>Impact</span>
+                                            <span class="filter-arrow">▾</span>
+                                        </button>
+                                    </th>
+
+                                    <th>
+                                        <button
+                                            class="column-filter"
+                                            type="button"
+                                            data-filter-key="priority">
+                                            <span>Priority</span>
+                                            <span class="filter-arrow">▾</span>
+                                        </button>
+                                    </th>
+
+                                    <th>
+                                        <button
+                                            class="column-filter"
+                                            type="button"
+                                            data-filter-key="assignedTeam">
+                                            <span>Team</span>
+                                            <span class="filter-arrow">▾</span>
+                                        </button>
+                                    </th>
+
+                                    <th>
+                                        <button
+                                            class="column-filter"
+                                            type="button"
+                                            data-filter-key="status">
+                                            <span>Status</span>
+                                            <span class="filter-arrow">▾</span>
+                                        </button>
+                                    </th>
+
+                                    <th class="col-actions">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="ticketTableBody"></tbody>
+                        </table>
+
+                        <!-- empty state -->
+                        <div id="tableEmpty" class="empty-state hidden">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+                            <h3>No tickets found</h3>
+                            <p>There are no tickets matching your current filter or search.</p>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- ===================== NOTIFICATIONS ===================== -->
+                <section class="panel notifications-container" id="notifications">
+                    <div class="section-header">
+                        <div>
+                            <h2>Team Notifications</h2>
+                            <p>Alerts dispatched to assigned response teams</p>
+                        </div>
+                        <span id="notificationCount" class="notification-count">0</span>
+                    </div>
+                    <div id="notificationList"></div>
+                </section>
+
+            </main>
+        </div>
+    </div>
+
+    <!-- ===================== TOAST HOST ===================== -->
+    <div id="toastHost" class="toast-host" aria-live="polite"></div>
+
+    <!-- ===================== DETAILS MODAL ===================== -->
+    <div id="detailsModal" class="modal-overlay hidden">
+        <div class="modal">
+            <div class="modal-header">
+                <h2>Ticket Details</h2>
+                <button class="modal-close" onclick="closeDetails()" aria-label="Close">&times;</button>
+            </div>
+            <div id="detailsContent"></div>
+        </div>
+    </div>
+
+    <!-- ===================== UPGRADE MODAL ===================== -->
+    <div id="upgradeModal" class="modal-overlay hidden">
+        <div class="modal">
+            <div class="modal-header">
+                <h2>Upgrade Priority</h2>
+                <button class="modal-close" onclick="closeUpgradeModal()" aria-label="Close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p>Ticket: <strong id="upgradeTicketNumber"></strong></p>
+                <p>Current Priority: <strong id="currentPriority"></strong></p>
+                <label for="newPriority">New Priority</label>
+                <select id="newPriority" class="priority-select">
+                    <option value="P3">P3 — Low</option>
+                    <option value="P2">P2 — Medium</option>
+                    <option value="P1">P1 — High</option>
+                </select>
+            </div>
+            <div class="modal-actions">
+                <button class="secondary-button" onclick="closeUpgradeModal()">Cancel</button>
+                <button class="primary-button" onclick="confirmUpgrade()">Upgrade Ticket</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===================== CLOSE MODAL ===================== -->
+    <div id="closeModal" class="modal-overlay hidden">
+        <div class="modal small-modal">
+            <div class="modal-header">
+                <h2>Close Ticket</h2>
+                <button class="modal-close" onclick="closeCloseModal()" aria-label="Close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to close <strong id="closeTicketNumber"></strong>? This action marks the ticket as resolved.</p>
+            </div>
+            <div class="modal-actions">
+                <button class="secondary-button" onclick="closeCloseModal()">Cancel</button>
+                <button class="danger-button" onclick="confirmClose()">Close Ticket</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===================== TROUBLESHOOT MODAL ===================== -->
+    <div id="troubleshootModal" class="modal-overlay hidden">
+        <div class="modal">
+            <div class="modal-header">
+                <h2>AI Troubleshooting Assistant</h2>
+                <button class="modal-close" onclick="closeTroubleshootModal()" aria-label="Close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="ts-meta">
+                    <div class="ts-meta-item"><span>Ticket</span><strong id="troubleshootTicketNumber"></strong></div>
+                    <div class="ts-meta-item"><span>Node</span><strong id="troubleshootNode"></strong></div>
+                    <div class="ts-meta-item"><span>Alarm Type</span><strong id="troubleshootAlarmType"></strong></div>
+                </div>
+                <div id="troubleshootContent">Loading troubleshooting recommendation…</div>
+                <div id="historicalIncidents" class="historical-incidents"></div>
+            </div>
+            <div class="modal-actions">
+                <button class="primary-button" onclick="closeTroubleshootModal()">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===================== MESSAGE MODAL ===================== -->
+    <div id="messageModal" class="modal-overlay hidden">
+        <div class="modal small-modal">
+            <div class="modal-header">
+                <h2 id="messageTitle">Message</h2>
+                <button class="modal-close" onclick="closeMessageModal()" aria-label="Close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p id="messageContent"></p>
+            </div>
+            <div class="modal-actions">
+                <button class="primary-button" onclick="closeMessageModal()">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+
+</html>

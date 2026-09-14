@@ -1,0 +1,24 @@
+﻿# Secrets and Environment
+.env
+*.env
+
+# Python
+venv/
+env/
+__pycache__/
+*.py[cod]
+*.class
+
+# Java / Compiled files
+*.class
+out/
+*.jar
+target/
+
+# Outputs and Archives
+output/
+*.zip
+
+# OS generated files
+.DS_Store
+Thumbs.db

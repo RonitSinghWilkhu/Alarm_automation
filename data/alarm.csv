@@ -1,0 +1,53 @@
+alarm_id,node,alarm_type,description,severity,threshold,actual_value,users_impacted,timestamp
+AL-20001,NODE-205,POWER_FAILURE,AC power loss detected at radio site,Critical,0.0,1.0,1800,2026-09-08 09:00:00
+AL-20002,NODE-205,POWER_FAILURE,Backup battery operating after power loss,Critical,0.0,1.0,1800,2026-09-08 09:01:00
+AL-20003,NODE-205,POWER_FAILURE,Power restored but voltage unstable,Major,180.0,165.0,900,2026-09-08 09:03:00
+AL-20004,NODE-502,HIGH_TEMPERATURE,Cabinet temperature above threshold,Minor,70.0,78.0,20,2026-09-08 09:05:00
+AL-20005,NODE-502,HIGH_TEMPERATURE,Radio unit temperature rising,Major,75.0,89.0,40,2026-09-08 09:07:00
+AL-20006,NODE-502,HIGH_TEMPERATURE,Cooling fan failure suspected,Critical,80.0,96.0,120,2026-09-08 09:09:00
+AL-20007,NODE-401,CELL_UNAVAILABLE,Cell unavailable detected,Major,1.0,0.0,80,2026-09-08 09:10:00
+AL-20008,NODE-401,CELL_UNAVAILABLE,Multiple cells unavailable,Critical,2.0,0.0,650,2026-09-08 09:12:00
+AL-20009,NODE-401,CELL_UNAVAILABLE,Cell service recovered intermittently,Minor,1.0,0.0,35,2026-09-08 09:14:00
+AL-20010,NODE-601,S1_LINK_DOWN,S1 interface link down,Critical,1.0,0.0,1500,2026-09-08 09:15:00
+AL-20011,NODE-601,S1_LINK_DOWN,S1 link flapping detected,Major,1.0,0.0,900,2026-09-08 09:17:00
+AL-20012,NODE-601,S1_LINK_DOWN,Secondary S1 link down,Major,1.0,0.0,400,2026-09-08 09:19:00
+AL-20013,NODE-301,VSWR_HIGH,Antenna VSWR above threshold,Major,1.5,2.4,120,2026-09-08 09:20:00
+AL-20014,NODE-301,VSWR_HIGH,High VSWR on sector 2,Critical,1.5,3.1,1000,2026-09-08 09:22:00
+AL-20015,NODE-301,VSWR_HIGH,VSWR warning cleared and returned,Minor,1.5,1.8,45,2026-09-08 09:24:00
+AL-20016,NODE-101,HIGH_CPU,CPU utilization above threshold,Major,80.0,94.0,50,2026-09-08 09:25:00
+AL-20017,NODE-101,HIGH_CPU,Sustained CPU saturation,Critical,85.0,99.0,300,2026-09-08 09:27:00
+AL-20018,NODE-101,HIGH_CPU,Short CPU utilization spike,Minor,80.0,83.0,15,2026-09-08 09:29:00
+AL-20019,NODE-702,POWER_FAILURE,Remote site power failure,Critical,0.0,1.0,2200,2026-09-08 09:30:00
+AL-20020,NODE-702,HIGH_CPU,Core processing load elevated,Major,80.0,91.0,700,2026-09-08 09:32:00
+AL-20021,NODE-702,S1_LINK_DOWN,Transport link unavailable,Critical,1.0,0.0,2200,2026-09-08 09:34:00
+AL-20022,NODE-803,HIGH_TEMPERATURE,Baseband unit temperature high,Major,70.0,86.0,300,2026-09-08 09:36:00
+AL-20023,NODE-803,VSWR_HIGH,Sector antenna mismatch detected,Major,1.5,2.7,180,2026-09-08 09:38:00
+AL-20024,NODE-803,CELL_UNAVAILABLE,Cell unavailable on sector 3,Major,1.0,0.0,160,2026-09-08 09:40:00
+AL-20025,NODE-904,HIGH_CPU,CPU utilization normalizing,Minor,80.0,82.0,25,2026-09-08 09:42:00
+AL-20026,NODE-904,POWER_FAILURE,Power supply module failure,Critical,0.0,1.0,1300,2026-09-08 09:44:00
+AL-20027,NODE-904,S1_LINK_DOWN,S1 link down after power event,Critical,1.0,0.0,1300,2026-09-08 09:46:00
+AL-20028,NODE-110,CELL_UNAVAILABLE,Cluster cell outage,Critical,2.0,0.0,950,2026-09-08 09:48:00
+AL-20029,NODE-110,HIGH_TEMPERATURE,Equipment room temperature elevated,Minor,70.0,76.0,10,2026-09-08 09:50:00
+AL-20030,NODE-110,VSWR_HIGH,Antenna return loss degraded,Major,1.5,2.2,95,2026-09-08 09:52:00
+AL-20031,NODE-115,HIGH_CPU,Application processor overload,Major,80.0,92.0,75,2026-09-08 09:54:00
+AL-20032,NODE-115,HIGH_CPU,CPU threshold exceeded repeatedly,Critical,80.0,98.0,450,2026-09-08 09:56:00
+AL-20033,NODE-115,POWER_FAILURE,DC input failure detected,Major,48.0,0.0,450,2026-09-08 09:58:00
+AL-20034,NODE-220,CELL_UNAVAILABLE,All cells unavailable at site,Critical,3.0,0.0,1750,2026-09-08 10:00:00
+AL-20035,NODE-220,S1_LINK_DOWN,S1 connectivity lost,Major,1.0,0.0,1750,2026-09-08 10:02:00
+AL-20036,NODE-220,HIGH_TEMPERATURE,Cabinet thermal alarm,Major,70.0,88.0,250,2026-09-08 10:04:00
+AL-20037,NODE-330,VSWR_HIGH,VSWR exceeds configured limit,Critical,1.5,3.5,800,2026-09-08 10:06:00
+AL-20038,NODE-330,HIGH_CPU,CPU load elevated during peak traffic,Major,80.0,90.0,800,2026-09-08 10:08:00
+AL-20039,NODE-330,POWER_FAILURE,Site power interrupted,Critical,0.0,1.0,800,2026-09-08 10:10:00
+AL-20040,NODE-450,HIGH_TEMPERATURE,Temperature warning,Minor,70.0,74.0,30,2026-09-08 10:12:00
+AL-20041,NODE-450,CELL_UNAVAILABLE,Single cell unavailable,Minor,1.0,0.0,25,2026-09-08 10:14:00
+AL-20042,NODE-450,S1_LINK_DOWN,S1 link degraded,Major,1.0,0.0,200,2026-09-08 10:16:00
+AL-20043,NODE-510,HIGH_CPU,CPU threshold breached,Major,80.0,87.0,60,2026-09-08 10:18:00
+AL-20044,NODE-510,POWER_FAILURE,Backup power activated,Major,0.0,1.0,600,2026-09-08 10:20:00
+AL-20045,NODE-510,VSWR_HIGH,VSWR threshold breached,Major,1.5,2.0,100,2026-09-08 10:22:00
+AL-20046,NODE-620,CELL_UNAVAILABLE,Multiple cells unavailable,Critical,2.0,0.0,1200,2026-09-08 10:24:00
+AL-20047,NODE-620,S1_LINK_DOWN,S1 interface failure,Critical,1.0,0.0,1200,2026-09-08 10:26:00
+AL-20048,NODE-620,HIGH_TEMPERATURE,Temperature exceeds safe limit,Critical,75.0,95.0,1200,2026-09-08 10:28:00
+AL-20049,NODE-710,HIGH_CPU,CPU utilization above warning threshold,Minor,80.0,84.0,40,2026-09-08 10:30:00
+AL-20050,NODE-710,POWER_FAILURE,Power supply failure,Critical,0.0,1.0,300,2026-09-08 10:32:00
+AL-20051,NODE-710,POWER_FAILURE,Power is not getting supplied to node,Critical,0.0,1.0,300,2026-09-08 10:32:00
+AL-20051,NODE-999,POWER_FAILURE,New test power failure alarm,Critical,0.0,1.0,2500,2026-09-09 15:10:00

@@ -1,0 +1,247 @@
+COMMAND REFERENCE: HIGH_CPU
+
+Alarm Type:
+HIGH_CPU
+
+Purpose:
+Commands for investigating high CPU utilization on a network node.
+
+Command 1:
+top
+
+Purpose:
+Display running processes and current CPU utilization.
+
+Command 2:
+ps aux
+
+Purpose:
+Display running processes and their CPU and memory utilization.
+
+Command 3:
+uptime
+
+Purpose:
+Display system uptime and current system load average.
+
+Command 4:
+vmstat
+
+Purpose:
+Display CPU, memory and system performance statistics.
+
+Command 5:
+mpstat
+
+Purpose:
+Display CPU utilization statistics.
+
+
+--------------------------------------------------
+
+
+COMMAND REFERENCE: POWER_FAILURE
+
+Alarm Type:
+POWER_FAILURE
+
+Purpose:
+Commands for checking node availability and system status after a power-related alarm.
+
+Command 1:
+uptime
+
+Purpose:
+Check whether the system is running and view system load.
+
+Command 2:
+systemctl status
+
+Purpose:
+Check the status of system services.
+
+Command 3:
+dmesg
+
+Purpose:
+Review kernel messages that may contain hardware or system events.
+
+Command 4:
+journalctl -p err
+
+Purpose:
+Display system log messages classified as errors.
+
+Command 5:
+last reboot
+
+Purpose:
+Check recent system reboot activity.
+
+
+--------------------------------------------------
+
+
+COMMAND REFERENCE: HIGH_TEMPERATURE
+
+Alarm Type:
+HIGH_TEMPERATURE
+
+Purpose:
+Commands for investigating system temperature and hardware conditions.
+
+Command 1:
+sensors
+
+Purpose:
+Display available hardware temperature and sensor readings.
+
+Command 2:
+dmesg
+
+Purpose:
+Review kernel messages for hardware or thermal events.
+
+Command 3:
+journalctl -p warning
+
+Purpose:
+Display system warning messages that may indicate hardware or thermal issues.
+
+Command 4:
+uptime
+
+Purpose:
+Check system uptime and current system load.
+
+
+--------------------------------------------------
+
+
+COMMAND REFERENCE: S1_LINK_DOWN
+
+Alarm Type:
+S1_LINK_DOWN
+
+Purpose:
+Commands for investigating network interface and connectivity problems.
+
+Command 1:
+ip link
+
+Purpose:
+Display the status of network interfaces.
+
+Command 2:
+ip addr
+
+Purpose:
+Display network interfaces and assigned IP addresses.
+
+Command 3:
+ping <destination>
+
+Purpose:
+Test basic network connectivity to a specified destination.
+
+Command 4:
+ss -tuln
+
+Purpose:
+Display listening network ports and active socket information.
+
+Command 5:
+ip route
+
+Purpose:
+Display the current routing table.
+
+
+--------------------------------------------------
+
+
+COMMAND REFERENCE: VSWR_HIGH
+
+Alarm Type:
+VSWR_HIGH
+
+Purpose:
+Commands for collecting system and interface information related to a radio or hardware alarm.
+
+Command 1:
+ip link
+
+Purpose:
+Check the status of available network interfaces.
+
+Command 2:
+dmesg
+
+Purpose:
+Review kernel messages for hardware or interface-related events.
+
+Command 3:
+journalctl -p warning
+
+Purpose:
+Review system warning messages.
+
+Command 4:
+uptime
+
+Purpose:
+Check system uptime and system load.
+
+Note:
+VSWR is primarily a radio and antenna measurement. The actual VSWR reading should normally be obtained from the appropriate network management or radio equipment interface rather than from a generic Linux shell command.
+
+
+--------------------------------------------------
+
+
+COMMAND REFERENCE: CELL_UNAVAILABLE
+
+Alarm Type:
+CELL_UNAVAILABLE
+
+Purpose:
+Commands for investigating node connectivity and system availability.
+
+Command 1:
+ping <destination>
+
+Purpose:
+Test connectivity to the affected network element.
+
+Command 2:
+ip link
+
+Purpose:
+Check the status of network interfaces.
+
+Command 3:
+ip route
+
+Purpose:
+Display the current routing table.
+
+Command 4:
+uptime
+
+Purpose:
+Check whether the node is running and view system load.
+
+Command 5:
+systemctl status
+
+Purpose:
+Check the status of system services.
+
+Command 6:
+journalctl -p err
+
+Purpose:
+Review system error messages.
+
+
+--------------------------------------------------
