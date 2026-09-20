@@ -12,3 +12,4 @@ chromadb
 sentence-transformers
 fastapi
 uvicorn
+FlagEmbedding
