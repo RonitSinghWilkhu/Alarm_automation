@@ -78,10 +78,34 @@ function TicketDetailsModal({ ticket, notifications, onClose }) {
         ["Reason", ticket.reason]
     ];
 
-    const upgrades = getPriorityUpgrades(notifications || [], ticket.ticketNumber);
-    const lastUpgrade = upgrades[upgrades.length - 1];
-    const resolutionMs = isClosed && lastUpgrade && ticket.closedAt
-        ? new Date(ticket.closedAt).getTime() - new Date(lastUpgrade.timestamp).getTime()
+    const ticketNotifications = (notifications || []).filter(notification => notification.ticketNumber === ticket.ticketNumber);
+    const upgrades = getPriorityUpgrades(ticketNotifications,ticket.ticketNumber);
+    const lastUpgrade = upgrades[upgrades.length-1];
+    const reopenEvents = ticketNotifications.filter(notification => notification.eventType === "TICKET_REOPENED").sort((a,b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime() );
+    const lifecycleEvents = ticketNotifications
+        .filter(
+            notification =>
+                [
+                    "TICKET_CREATED",
+                    "PRIORITY_UPGRADE",
+                    "PRIORITY_DOWNGRADE",
+                    "TICKET_CLOSED",
+                    "TICKET_REOPENED"
+                ].includes(notification.eventType)
+        ).sort(
+            (a,b) =>
+                new Date(a.timestamp).getTime() -
+                new Date(b.timestamp).getTime()
+        );
+
+    const resolutionMsStartTime = ticket.reopenedAt
+        ? new Date(ticket.reopenedAt).getTime()
+        : lastUpgrade
+            ? new Date(lastUpgrade.timestamp).getTime()
+            : null;
+
+    const resolutionMs = isClosed && resolutionMsStartTime && ticket.closedAt
+        ? new Date(ticket.closedAt).getTime() - resolutionMsStartTime
         : null;
 
     const segments = getStageSegments(upgrades, ticket, now);
@@ -93,17 +117,18 @@ function TicketDetailsModal({ ticket, notifications, onClose }) {
     let isBreached = false;
     let slaStatus = null;
 
-    if (hasTimerPriority && lastUpgrade) {
+    if (hasTimerPriority && resolutionMsStartTime) {
         const thresholdMs = PRIORITY_THRESHOLD_MS[ticket.priority];
-        const startTime = new Date(lastUpgrade.timestamp).getTime();
 
         elapsedOrResolutionMs = isClosed
             ? resolutionMs
-            : now - startTime;
+            : now - resolutionMsStartTime;
 
         remainingMs = thresholdMs - elapsedOrResolutionMs;
-        isBreached = remainingMs < 0;
-        slaStatus = getSlaStatus(isClosed, remainingMs);
+
+        isBreached = remainingMs<0;
+
+        slaStatus = getSlaStatus(isClosed,remainingMs);
     }
 
     return (
@@ -136,40 +161,136 @@ function TicketDetailsModal({ ticket, notifications, onClose }) {
                     </div>
 
                     <div className="modal-section priority-history">
-                        <h3><Activity size={14} /> Priority History</h3>
-                        {upgrades.length === 0 ? (
-                            <p className="priority-history-empty">No priority upgrades recorded yet.</p>
+                        {lifecycleEvents.length === 0 ? (
+
+                            <p className="priority-history-empty">
+                                No lifecycle history recorded yet.
+                            </p>
+
                         ) : (
+
                             <ul className="priority-history-list">
-                                {upgrades.map((event, i) => (
-                                    <li className="ph-item" key={`${event.timestamp}-${i}`}>
-                                        <span className="ph-dot"></span>
+
+                                {lifecycleEvents.map((event, index) => (
+
+                                    <li
+                                        className={
+                                            event.eventType === "TICKET_CLOSED"
+                                                ? "ph-item ph-item-closed"
+                                                : "ph-item"
+                                        }
+                                        key={`${event.eventType}-${event.timestamp}-${index}`}
+                                    >
+
+                                        <span
+                                            className={
+                                                event.eventType === "TICKET_CLOSED"
+                                                    ? "ph-dot ph-dot-closed"
+                                                    : "ph-dot"
+                                            }
+                                        >
+
+                                            {event.eventType === "TICKET_CLOSED"
+                                                ? <CheckCircle2 size={11} />
+                                                : null}
+
+                                        </span>
+
                                         <div className="ph-content">
-                                            <span className="ph-transition">
-                                                {event.previousPriority} <ArrowRight size={12} /> {event.newPriority}
-                                            </span>
-                                            <span className="ph-time">{formatTimestamp(event.timestamp)}</span>
-                                            {segments[i] && (
-                                                <span className="ph-duration">
-                                                    {event.newPriority} stage: {formatDuration(segments[i].durationMs)}
-                                                    {segments[i].isOngoing ? " (ongoing)" : ""}
-                                                </span>
+
+                                            {event.eventType === "TICKET_CREATED" && (
+
+                                                <>
+                                                    <span className="ph-transition">
+                                                        Ticket created
+                                                    </span>
+
+                                                    <span className="ph-time">
+                                                        {formatTimestamp(event.timestamp)}
+                                                    </span>
+
+                                                    <span className="ph-duration">
+                                                        Priority: {event.priority}
+                                                    </span>
+                                                </>
+
                                             )}
+
+                                            {(event.eventType === "PRIORITY_UPGRADE" ||
+                                            event.eventType === "PRIORITY_DOWNGRADE") && (
+
+                                                <>
+                                                    <span className="ph-transition">
+
+                                                        {event.previousPriority}
+
+                                                        <ArrowRight size={12} />
+
+                                                        {event.newPriority}
+
+                                                    </span>
+
+                                                    <span className="ph-time">
+                                                        {formatTimestamp(event.timestamp)}
+                                                    </span>
+
+                                                    <span className="ph-duration">
+                                                        {event.eventType === "PRIORITY_UPGRADE"
+                                                            ? "Priority upgraded"
+                                                            : "Priority downgraded"}
+                                                    </span>
+                                                </>
+
+                                            )}
+
+                                            {event.eventType === "TICKET_CLOSED" && (
+
+                                                <>
+                                                    <span className="ph-transition">
+                                                        Ticket closed
+                                                    </span>
+
+                                                    <span className="ph-time">
+                                                        {formatTimestamp(event.timestamp)}
+                                                    </span>
+
+                                                    <span className="ph-duration">
+                                                        Priority: {event.priority}
+                                                    </span>
+                                                </>
+
+                                            )}
+
+                                            {event.eventType === "TICKET_REOPENED" && (
+
+                                                <>
+                                                    <span className="ph-transition">
+                                                        Ticket reopened
+                                                    </span>
+
+                                                    <span className="ph-time">
+                                                        {formatTimestamp(event.timestamp)}
+                                                    </span>
+
+                                                    <span className="ph-duration">
+                                                        Priority: {event.priority}
+                                                    </span>
+
+                                                    <span className="ph-duration">
+                                                        Reason: {event.reason}
+                                                    </span>
+                                                </>
+
+                                            )}
+
                                         </div>
+
                                     </li>
+
                                 ))}
-                                {isClosed && lastUpgrade && (
-                                    <li className="ph-item ph-item-closed">
-                                        <span className="ph-dot ph-dot-closed"><CheckCircle2 size={11} /></span>
-                                        <div className="ph-content">
-                                            <span className="ph-transition">
-                                                {lastUpgrade.newPriority} <ArrowRight size={12} /> CLOSED
-                                            </span>
-                                            <span className="ph-time">{formatTimestamp(ticket.closedAt)}</span>
-                                        </div>
-                                    </li>
-                                )}
+
                             </ul>
+
                         )}
                         {resolutionMs !== null && (
                             <div className="priority-history-resolution">
@@ -183,8 +304,8 @@ function TicketDetailsModal({ ticket, notifications, onClose }) {
                         <h3><Gauge size={14} /> Resolution Summary</h3>
                         {!hasTimerPriority ? (
                             <p className="resolution-summary-empty">No resolution timer for P4 tickets.</p>
-                        ) : !lastUpgrade ? (
-                            <p className="resolution-summary-empty">No priority upgrade recorded yet.</p>
+                        ) : !resolutionMsStartTime ? (
+                            <p className="resolution-summary-empty">No SLA timer start recorded yet.</p>
                         ) : (
                             <div className="resolution-summary-grid">
                                 <div className="rs-item">

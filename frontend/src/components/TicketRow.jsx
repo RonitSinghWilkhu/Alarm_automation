@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
-import { Ticket, Eye, ArrowUp, Brain, CheckCircle, Clock, AlertTriangle } from "lucide-react";
+import { Ticket, CheckCircle, Clock, AlertTriangle } from "lucide-react";
 import { getLatestPriorityUpgrade, PRIORITY_THRESHOLD_MS } from "../utils/priorityHistory";
+import RowActionsMenu from "./RowActionsMenu";
 
 function severityClass(severity) {
     const value = String(severity || "").toUpperCase();
@@ -34,29 +35,74 @@ function formatResolutionTime(ms) {
     return h > 0 ? `${h}h ${m}m` : `${m}m`;
 }
 
-// P4 tickets never have a timer. For P1-P3, the timer always restarts from
-// the latest priority-upgrade timestamp (never from ticket creation time).
+function formatAlarmType(alarmType) {
+    if (!alarmType) {
+        return "-";
+    }
+
+    return String(alarmType)
+        .toLowerCase()
+        .replace(/_/g, " ")
+        .replace(/\b\w/g, char => char.toUpperCase());
+}
+
+function getLatestReopenEvent(notifications, ticketNumber) {
+    return notifications
+        .filter(
+            notification => 
+                    notification.ticketNumber === ticketNumber &&
+                    notification.eventType === "TICKET_REOPENED"
+        )
+        .sort(
+            (a,b) =>
+                new Date(b.timestamp).getTime() -
+                new Date(a.timestamp).getTime()
+        )[0] || null;
+}
+
+// P4 tickets never have a timer.
+// For P1-P3, the timer starts from the latest reopen event.
+// If the ticket has never been reopened, it falls back to the latest
+// priority-upgrade timestamp.
 function ResolutionTimer({ ticket, notifications }) {
     const [now, setNow] = useState(() => Date.now());
     const isClosed = ticket.status === "CLOSED";
     const hasTimerPriority = ticket.priority !== "P4";
 
     useEffect(() => {
-        if (isClosed || !hasTimerPriority) return;
-        const interval = setInterval(() => setNow(Date.now()), 1000);
+        if(!hasTimerPriority){
+            return;
+        }
+
+        const interval = setInterval(
+            () => setNow(Date.now()),
+            1000
+        );
+
         return () => clearInterval(interval);
-    }, [isClosed, hasTimerPriority]);
+    }, [hasTimerPriority]);
 
     if (!hasTimerPriority) {
         return <span className="res-timer-none">No timer</span>;
     }
 
     const latestUpgrade = getLatestPriorityUpgrade(notifications, ticket.ticketNumber);
-    if (!latestUpgrade) {
-        return <span className="res-timer-none">No timer</span>;
+
+    let startTime;
+
+    if(ticket.reopenedAt){
+        startTime = new Date(ticket.reopenedAt).getTime();
+    }else if (latestUpgrade){
+        startTime= new Date(
+            latestUpgrade.timestamp
+        ).getTime();
+    } else{
+        return(
+            <span className="res-timer-none">No timer</span>
+        );
     }
 
-    const startTime = new Date(latestUpgrade.timestamp).getTime();
+
     const thresholdMs = PRIORITY_THRESHOLD_MS[ticket.priority];
 
     if (isClosed) {
@@ -93,10 +139,13 @@ function ResolutionTimer({ ticket, notifications }) {
     );
 }
 
-function TicketRow({ ticket, notifications, onDetails, onUpgrade, onTroubleshoot, onClose }) {
+
+function TicketRow({ ticket, notifications, onDetails, onUpgrade, onTroubleshoot, onClose, onReopen }) {
     const isClosed = ticket.status === "CLOSED";
+    const isReopened = Boolean(ticket.reopenedAt);
+
     const priorityClass = `p-${String(ticket.priority || "").toLowerCase()}`;
-    const statusClass = isClosed ? "status-closed" : "status-open";
+    const statusClass = isClosed ? "status-closed" : isReopened ? "status-reopened" : "status-open";
 
     return (
         <tr>
@@ -107,7 +156,7 @@ function TicketRow({ ticket, notifications, onDetails, onUpgrade, onTroubleshoot
                 </div>
             </td>
             <td><span className="cell-node">{ticket.node}</span></td>
-            <td>{ticket.alarmType}</td>
+            <td className="alarm-type-cell">{formatAlarmType(ticket.alarmType)}</td>
             <td>
                 <span className={`sev ${severityClass(ticket.severity)}`}>
                     <span className="sev-dot"></span>
@@ -121,7 +170,7 @@ function TicketRow({ ticket, notifications, onDetails, onUpgrade, onTroubleshoot
                 </span>
             </td>
             <td>
-                <div className="cell-priority">
+                <div className="cell-priority priority-with-timer">
                     <span className={`badge priority ${priorityClass}`}>
                         <span className="badge-dot"></span>
                         {ticket.priority}
@@ -133,47 +182,19 @@ function TicketRow({ ticket, notifications, onDetails, onUpgrade, onTroubleshoot
             <td>
                 <span className={`badge ${statusClass}`}>
                     <span className="badge-dot"></span>
-                    {ticket.status}
+                    {ticket.reopenedAt ? "REOPENED" : ticket.status}
                 </span>
             </td>
             <td>
-                <div className="row-actions">
-                    <button
-                        className="act-btn act-details"
-                        type="button"
-                        onClick={() => onDetails(ticket)}
-                        title="View details"
-                    >
-                        <Eye size={14} />
-                        <span>Details</span>
-                    </button>
-                    <button
-                        className="act-btn act-upgrade"
-                        type="button"
-                        onClick={() => onUpgrade(ticket)}
-                        disabled={isClosed}
-                        title="Upgrade priority"
-                    >
-                        <ArrowUp size={14} />
-                    </button>
-                    <button
-                        className="act-btn act-ai"
-                        type="button"
-                        onClick={() => onTroubleshoot(ticket)}
-                        title="AI troubleshoot"
-                    >
-                        <Brain size={14} />
-                    </button>
-                    <button
-                        className="act-btn act-close"
-                        type="button"
-                        onClick={() => onClose(ticket)}
-                        disabled={isClosed}
-                        title="Close ticket"
-                    >
-                        <CheckCircle size={14} />
-                    </button>
-                </div>
+                <RowActionsMenu
+                    ticket={ticket}
+                    isClosed={isClosed}
+                    onDetails={onDetails}
+                    onUpgrade={onUpgrade}
+                    onTroubleshoot={onTroubleshoot}
+                    onClose={onClose}
+                    onReopen={onReopen}
+                />
             </td>
         </tr>
     );

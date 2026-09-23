@@ -26,6 +26,10 @@ NOTIFICATIONS_FILE = "output/notifications.json"
 class PriorityUpdate(BaseModel):
     priority: str
 
+class ReopenUpdate(BaseModel):
+    priority: str
+    reason: str
+
 @app.get("/")
 def home():
 
@@ -184,6 +188,8 @@ def close_ticket(ticket_number: str):
 
             ticket["closedAt"] = datetime.now().isoformat(timespec="seconds")
 
+            notifications = []
+
             if os.path.exists(NOTIFICATIONS_FILE):
 
                 with open(
@@ -191,24 +197,36 @@ def close_ticket(ticket_number: str):
                     "r",
                     encoding="utf-8"
                 ) as file:
+                    notifications=json.load(file)
 
-                    notifications = json.load(file)
+            close_notification = {
+                "ticketNumber" : ticket_number,
+                "assignedTeam": ticket["assignedTeam"],
+                "message":(
+                    "Ticket closed\n"
+                    f"Time: {ticket['closedAt']}"
+                ),
+                "status": "RESOLVED",
+                "eventType": "TICKET_CLOSED",
+                "priority": ticket["priority"],
+                "timestamp": ticket["closedAt"],
+                "alarmType": ticket["alarmType"],
+                "node": ticket["node"]    
+            }
 
-                for notification in notifications:
-                    if notification["ticketNumber"] == ticket_number:
-                        notification["status"] = "RESOLVED"
+            notifications.append(close_notification)
 
-                with open(
-                    NOTIFICATIONS_FILE,
-                    "w",
-                    encoding="utf-8"
-                ) as file:
+            with open(
+                NOTIFICATIONS_FILE,
+                "w",
+                encoding="utf-8"
+            ) as file:
 
-                    json.dump(
-                        notifications,
-                        file,
-                        indent=4
-                    )
+                json.dump(
+                    notifications,
+                    file,
+                    indent=4
+                )
 
             ticket_found = True
 
@@ -235,6 +253,192 @@ def close_ticket(ticket_number: str):
         "closedAt": ticket["closedAt"]
     }
 
+@app.put("/tickets/{ticket_number}/reopen")
+def reopen_ticket(
+    ticket_number: str,
+    update: ReopenUpdate
+):
+
+    allowed_priorities = [
+        "P1",
+        "P2",
+        "P3",
+        "P4"
+    ]
+
+
+    if update.priority not in allowed_priorities:
+
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid priority"
+        )
+
+
+    reason = update.reason.strip()
+
+
+    if not reason:
+
+        raise HTTPException(
+            status_code=400,
+            detail="Reopen reason is required"
+        )
+
+
+    if not os.path.exists(TICKETS_FILE):
+
+        raise HTTPException(
+            status_code=500,
+            detail="tickets.json not found"
+        )
+
+
+    with open(
+        TICKETS_FILE,
+        "r",
+        encoding="utf-8"
+    ) as file:
+
+        tickets = json.load(file)
+
+
+    ticket_found = False
+    reopened_at = None
+
+
+    for ticket in tickets:
+
+        if ticket["ticketNumber"] != ticket_number:
+            continue
+
+
+        if ticket["status"] != "CLOSED":
+
+            raise HTTPException(
+                status_code=409,
+                detail="Ticket is already open"
+            )
+
+
+        reopened_at = datetime.now().isoformat(
+            timespec="seconds"
+        )
+
+
+        ticket["status"] = "OPEN"
+
+        ticket["priority"] = update.priority
+
+        ticket["reopenedAt"] = reopened_at
+
+        ticket_found = True
+
+
+        break
+
+
+    if not ticket_found:
+
+        raise HTTPException(
+            status_code=404,
+            detail="Ticket not found"
+        )
+
+
+    with open(
+        TICKETS_FILE,
+        "w",
+        encoding="utf-8"
+    ) as file:
+
+        json.dump(
+            tickets,
+            file,
+            indent=4
+        )
+
+
+    notifications = []
+
+
+    if os.path.exists(NOTIFICATIONS_FILE):
+
+        with open(
+            NOTIFICATIONS_FILE,
+            "r",
+            encoding="utf-8"
+        ) as file:
+
+            notifications = json.load(file)
+
+
+    reopen_notification = {
+
+        "ticketNumber": ticket_number,
+
+        "assignedTeam": ticket["assignedTeam"],
+
+        "message": (
+            "Ticket reopened\n"
+            f"Current priority: {update.priority}\n"
+            f"Reason: {reason}\n"
+            f"Time: {reopened_at}"
+        ),
+
+        "status": "ACKNOWLEDGED",
+
+        "eventType": "TICKET_REOPENED",
+
+        "priority": update.priority,
+
+        "newPriority": update.priority,
+
+        "reason": reason,
+
+        "timestamp": reopened_at,
+
+        "alarmType": ticket["alarmType"],
+
+        "node": ticket["node"]
+
+    }
+
+
+    notifications.append(
+        reopen_notification
+    )
+
+
+    with open(
+        NOTIFICATIONS_FILE,
+        "w",
+        encoding="utf-8"
+    ) as file:
+
+        json.dump(
+            notifications,
+            file,
+            indent=4
+        )
+
+
+    return {
+
+        "message": "Ticket reopened successfully",
+
+        "ticketNumber": ticket_number,
+
+        "status": "OPEN",
+
+        "priority": update.priority,
+
+        "reason": reason,
+
+        "reopenedAt": reopened_at
+
+    }
+
 @app.put("/tickets/{ticket_number}/acknowledge")
 def acknowledge_ticket(ticket_number: str):
     if not os.path.exists(NOTIFICATIONS_FILE):
@@ -243,20 +447,44 @@ def acknowledge_ticket(ticket_number: str):
     with open(NOTIFICATIONS_FILE, "r", encoding="utf-8") as file:
         notifications = json.load(file)
 
-    updated = False
-    for notification in notifications:
-        if notification["ticketNumber"] == ticket_number:
-            # Only update if it's not already acknowledged or resolved
-            if notification["status"] != "ACKNOWLEDGED" and notification["status"] != "RESOLVED":
-                notification["status"] = "ACKNOWLEDGED"
-                updated = True
+    # Acknowledging is a UI "mark as read" action, NOT a lifecycle transition.
+    # Historical lifecycle events (TICKET_CREATED, PRIORITY_*, TICKET_CLOSED,
+    # TICKET_REOPENED) must remain immutable. We therefore acknowledge ONLY the
+    # single most recent event for this ticket, leaving all prior events intact.
 
-    with open(NOTIFICATIONS_FILE, "w", encoding="utf-8") as file:
-        json.dump(notifications, file, indent=4)
+    # Find the index of the latest notification for this ticket (by timestamp,
+    # falling back to insertion order for events without a timestamp).
+    latest_index = None
+    latest_key = None
+    for index, notification in enumerate(notifications):
+        if notification.get("ticketNumber") != ticket_number:
+            continue
+
+        # Sort key: (timestamp string, insertion index). Empty timestamps sort
+        # lowest, so a later-appended event without a timestamp still wins via
+        # the insertion index tiebreaker.
+        key = (notification.get("timestamp") or "", index)
+        if latest_key is None or key > latest_key:
+            latest_key = key
+            latest_index = index
+
+    if latest_index is None:
+        raise HTTPException(status_code=404, detail="No notifications for ticket")
+
+    updated = False
+    latest = notifications[latest_index]
+    if latest.get("status") not in ("ACKNOWLEDGED", "RESOLVED"):
+        latest["status"] = "ACKNOWLEDGED"
+        updated = True
+
+    if updated:
+        with open(NOTIFICATIONS_FILE, "w", encoding="utf-8") as file:
+            json.dump(notifications, file, indent=4)
 
     return {
-        "message": "Ticket notifications acknowledged",
-        "ticketNumber": ticket_number
+        "message": "Latest notification acknowledged",
+        "ticketNumber": ticket_number,
+        "acknowledged": updated
     }
 
 @app.get("/notifications")

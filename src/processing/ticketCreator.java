@@ -34,7 +34,8 @@ public class ticketCreator {
                             draft.getPriority(),
                             draft.getAssignedTeam(),
                             "OPEN",
-                            draft.getReason()
+                            draft.getReason(),
+                            draft.getCreatedAt()
                     );
 
             tickets.add(newTicket);

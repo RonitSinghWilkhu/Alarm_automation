@@ -1,6 +1,21 @@
 import { Bell, Search, X, Ticket } from "lucide-react";
 import { useState, useEffect } from "react";
-import { getTicketSlaStatus } from "../utils/priorityHistory";
+import { getTicketSlaStatus , getTicketActivityTime } from "../utils/priorityHistory";
+
+function formatTimestamp(ts){
+    if (!ts) {
+        return "";
+    }
+
+    return new Date(ts).toLocaleString("en-US",{
+        day: "numeric",
+        month:"short",
+        year:"numeric",
+        hour:"numeric",
+        minute:"2-digit",
+        hour12: true
+    });
+}
 
 function Notifications({ notifications, tickets, onAcknowledge }) {
     const [statusFilter, setStatusFilter] = useState("OPEN");
@@ -23,14 +38,27 @@ function Notifications({ notifications, tickets, onAcknowledge }) {
     const groupedList = Object.keys(groups).map(tNum => {
         const notifs = groups[tNum];
         const ticket = tickets.find(t => t.ticketNumber === tNum);
-        const sortedNotifs = [...notifs].sort((a, b) => new Date(b.timestamp || 0).getTime() - new Date(a.timestamp || 0).getTime());
-        return {
+        const sortedNotifs = [...notifs].sort(
+            (a,b) =>
+                new Date(b.timestamp || 0).getTime() - 
+                new Date(a.timestamp || 0).getTime()
+        );
+
+        const activityTime = ticket
+            ? getTicketActivityTime(ticket,notifications):0;
+
+        return{
             ticketNumber: tNum,
             ticket,
             notifications: sortedNotifs,
-            latestNotif: sortedNotifs[0]
+            latestNotif: sortedNotifs[0],
+            activityTime
         };
-    });
+    })
+    .sort(
+        (a,b) =>
+            b.activityTime - a.activityTime
+    );
 
     // 3. Apply Filters to the groups
     const filteredGroups = groupedList.filter(group => {
@@ -128,7 +156,7 @@ function Notifications({ notifications, tickets, onAcknowledge }) {
                                 <div className="notification-team">{group.ticket?.assignedTeam || 'Unknown'}</div>
                                 <div className="notification-message">
                                     <div style={{ fontWeight: 500 }}>{eventCount} event{eventCount > 1 ? 's' : ''} for {group.ticket?.alarmType || 'Alarm'} on {group.ticket?.node || 'Node'}</div>
-                                    <div style={{ fontSize: '0.8rem', color: '#64748b', marginTop: '2px' }}>Latest: {latest.message || `Priority changed to ${latest.newPriority}`}</div>
+                                    <div style={{ fontSize: '0.8rem', color: '#64748b', marginTop: '6px' }}>Latest: {latest.message || `Priority changed to ${latest.newPriority}`}</div>
                                 </div>
                                 <div className="notification-status" style={{ marginRight: '10px' }}>{group.ticket?.status || 'UNKNOWN'}</div>
                                 
@@ -173,13 +201,56 @@ function Notifications({ notifications, tickets, onAcknowledge }) {
                                         <Bell size={14} color="#475569" />
                                     </div>
                                     <div style={{ flex: 1 }}>
-                                        <div style={{ fontSize: '0.85rem', color: '#64748b', marginBottom: '4px' }}>{n.timestamp ? new Date(n.timestamp).toLocaleString() : ''}</div>
-                                        <div style={{ fontWeight: 500, marginBottom: '4px' }}>
-                                            {n.eventType === "PRIORITY_UPGRADE" ? <>Ticket upgraded from <strong>{n.previousPriority}</strong> to <strong>{n.newPriority}</strong></>
-                                            : n.eventType === "PRIORITY_DOWNGRADE" ? <>Ticket downgraded from <strong>{n.previousPriority}</strong> to <strong>{n.newPriority}</strong></>
-                                            : n.message}
+                                        <div style={{ fontSize: '0.85rem', color: '#64748b', marginBottom: '4px' }}>{formatTimestamp(n.timestamp)}</div>
+                                        <div style={{fontWeight: 500, marginBottom: '4px'}}>
+                                            {n.eventType === "PRIORITY_UPGRADE" ? (
+                                                <>
+                                                    Ticket upgraded from <strong>{n.previousPriority}</strong> to <strong>{n.newPriority}</strong>
+                                                </>
+                                            ) : n.eventType === "PRIORITY_DOWNGRADE" ? (
+                                                <>
+                                                   Ticket downgraded from <strong>{n.previousPriority}</strong> to <strong>{n.newPriority}</strong> 
+                                                </>
+                                            ) : n.eventType === "TICKET_CLOSED" ? (
+                                                <>
+                                                    Ticket closed
+                                                </>
+                                            ) : n.eventType === "TICKET_REOPENED" ? (
+                                                <>
+                                                    Ticket reopened
+                                                </>
+                                            ):(                                           
+                                                n.message
+                                            )  
+                                            }
                                         </div>
-                                        {n.alarmType && n.node && <div style={{ fontSize: '0.8rem', color: '#94a3b8' }}>{n.alarmType} on {n.node}</div>}
+                                        {n.alarmType && n.node && (
+                                            <div style={{ fontSize: '0.8rem', color: '#94a3b8' }}>
+                                                {n.alarmType} on {n.node}
+                                            </div>
+                                        )}
+
+                                        {n.eventType === "TICKET_CREATED" && n.priority && (
+                                            <div style={{ fontSize: '0.8rem', color: '#64748b', marginTop: '4px' }}>
+                                                Priority: {n.priority}
+                                            </div>
+                                        )}
+
+                                        {n.eventType === "TICKET_REOPENED" && (
+                                            <>
+                                                {n.priority && (
+                                                    <div style={{ fontSize: '0.8rem', color: '#64748b', marginTop: '4px' }}>
+                                                        Priority: {n.priority}
+                                                    </div>
+                                                )}
+
+                                                {n.reason && (
+                                                    <div style={{ fontSize: '0.8rem', color: '#64748b', marginTop: '4px' }}>
+                                                        Reason: {n.reason}
+                                                    </div>
+                                                )}
+                                            </>
+                                        )}
                                         <div style={{ marginTop: '6px' }}>
                                             <span style={{ fontSize: '0.7rem', padding: '2px 6px', borderRadius: '4px', backgroundColor: n.status === 'ACKNOWLEDGED' ? '#fef3c7' : '#e0f2fe', color: n.status === 'ACKNOWLEDGED' ? '#92400e' : '#0369a1' }}>{n.status}</span>
                                         </div>

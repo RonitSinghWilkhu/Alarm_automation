@@ -42,7 +42,8 @@ public class ticketDraftGenerator {
                             priority.getPriority(),
                             assignedTeam,
                             "DRAFT",
-                            priority.getReason()
+                            priority.getReason(),
+                            impact.getCreatedAt()
                     );
 
             drafts.add(draft);

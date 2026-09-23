@@ -14,6 +14,7 @@ public class ticket {
     private String assignedTeam;
     private String status;
     private String reason;
+    private String createdAt;
 
     public ticket(
             String ticketNumber,
@@ -27,7 +28,8 @@ public class ticket {
             String priority,
             String assignedTeam,
             String status,
-            String reason) {
+            String reason,
+            String createdAt) {
 
         this.ticketNumber = ticketNumber;
         this.node = node;
@@ -41,6 +43,7 @@ public class ticket {
         this.assignedTeam = assignedTeam;
         this.status = status;
         this.reason = reason;
+        this.createdAt = createdAt;
     }
 
     public String getTicketNumber() {
@@ -89,6 +92,10 @@ public class ticket {
 
     public String getReason() {
         return reason;
+    }
+
+    public String getCreatedAt(){
+        return createdAt;
     }
 
     @Override

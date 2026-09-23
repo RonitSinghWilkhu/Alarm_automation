@@ -8,6 +8,7 @@ public class impactResult {
     private String severity;
     private boolean thresholdBreached;
     private String impactLevel;
+    private String createdAt;
 
     public impactResult(
         String node,
@@ -16,7 +17,8 @@ public class impactResult {
         int usersImpacted,
         String severity,
         boolean thresholdBreached,
-        String impactLevel
+        String impactLevel,
+        String createdAt
     ){
         this.node = node;
         this.alarmType = alarmType;
@@ -25,6 +27,7 @@ public class impactResult {
         this.severity = severity;
         this.thresholdBreached = thresholdBreached;
         this.impactLevel = impactLevel;
+        this.createdAt = createdAt;
     }
 
     public String getNode() {
@@ -53,6 +56,10 @@ public class impactResult {
 
     public String getImpactLevel() {
         return impactLevel;
+    }
+
+    public String getCreatedAt(){
+        return createdAt;
     }
 
     @Override

@@ -23,6 +23,42 @@ export function getLatestPriorityUpgrade(notifications, ticketNumber) {
     return upgrades.length ? upgrades[upgrades.length - 1] : null;
 }
 
+export function getTicketActivityTime(ticket, notifications = []) {
+
+    const timestamps = [];
+
+    if (ticket.createdAt) {
+        timestamps.push(
+            new Date(ticket.createdAt).getTime()
+        );
+    }
+
+    if (ticket.reopenedAt) {
+        timestamps.push(
+            new Date(ticket.reopenedAt).getTime()
+        );
+    }
+
+    const upgrades = getPriorityUpgrades(
+        notifications,
+        ticket.ticketNumber
+    );
+
+    upgrades.forEach(upgrade => {
+
+        if (upgrade.timestamp) {
+            timestamps.push(
+                new Date(upgrade.timestamp).getTime()
+            );
+        }
+
+    });
+
+    return timestamps.length > 0
+        ? Math.max(...timestamps)
+        : 0;
+}
+
 // NEW: Shared SLA calculator. 
 // It completely IGNORES the backend's 'thresholdBreached' field (which is for alarm triggers)
 // and calculates SLA strictly based on time thresholds.
@@ -33,11 +69,19 @@ export function getTicketSlaStatus(ticket, notifications) {
     if (ticket.priority === "P4") return "WITHIN_SLA";
 
     const latestUpgrade = getLatestPriorityUpgrade(notifications, ticket.ticketNumber);
-    
-    // If no upgrade events exist yet, we assume it's within SLA (timer hasn't started or just created)
-    if (!latestUpgrade) return "WITHIN_SLA";
 
-    const startTime = new Date(latestUpgrade.timestamp).getTime();
+    let startTime;
+
+    if(ticket.reopenedAt){
+        startTime=new Date(
+            ticket.reopenedAt
+        ).getTime();
+    }else if(latestUpgrade){
+        startTime = new Date(latestUpgrade.timestamp).getTime();
+    }else{
+        return "WITHIN_SLA";
+    }
+
     const thresholdMs = PRIORITY_THRESHOLD_MS[ticket.priority];
 
     if (ticket.status === "CLOSED") {

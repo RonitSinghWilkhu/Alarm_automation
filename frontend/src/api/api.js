@@ -47,6 +47,46 @@ export async function closeTicket(ticketNumber) {
     return await response.json();
 }
 
+export async function reopenTicket(
+    ticketNumber,
+    priority,
+    reason
+) {
+
+    const response = await fetch(
+        `${API_BASE}/tickets/${ticketNumber}/reopen`,
+        {
+            method: "PUT",
+
+            headers: {
+                "Content-Type": "application/json"
+            },
+
+            body: JSON.stringify({
+                priority,
+                reason
+            })
+        }
+    );
+
+
+    const data = await response.json();
+
+
+    if (!response.ok) {
+
+        throw new Error(
+            data.detail ||
+            data.message ||
+            "Failed to reopen ticket"
+        );
+
+    }
+
+
+    return data;
+}
+
 export async function upgradeTicket(ticketNumber, newPriority) {
     const response = await fetch(`${API_BASE}/tickets/${ticketNumber}/priority`, {
         method: "PUT",

@@ -43,7 +43,17 @@ public class notificationJsonWriter {
             notification.put("assignedTeam", ticket.getAssignedTeam());
 
             notification.put("message", message);
-            notification.put("status", "Pending");
+            notification.put("status", "PENDING");
+            notification.put("eventType", "TICKET_CREATED");
+            String createdAt = ticket.getCreatedAt();
+            String timestamp =
+                    (createdAt != null)
+                            ? createdAt.replace(" ", "T")
+                            : null;
+            notification.put("timestamp", timestamp);
+            notification.put("priority", ticket.getPriority());
+            notification.put("alarmType", ticket.getAlarmType());
+            notification.put("node", ticket.getNode());
 
             notifications.add(notification);
         }

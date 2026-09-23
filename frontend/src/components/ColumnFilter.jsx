@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { ChevronDown, Check } from "lucide-react";
+import { ChevronDown, Check, Ticket } from "lucide-react";
 
 function ColumnFilter({ label, field, values, value, onChange }) {
     const [isOpen, setIsOpen] = useState(false);
@@ -23,14 +23,26 @@ function ColumnFilter({ label, field, values, value, onChange }) {
     }, []);
 
     // Get unique sorted values for this field
-    const uniqueValues = [
-        ...new Set(
-            values
-                .map(ticket => ticket[field])
-                .filter(v => v !== null && v !== undefined && String(v).trim() !== "")
-                .map(v => String(v))
-        )
-    ].sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" }));
+    const uniqueValues = field === "status"
+        ? ["OPEN", "REOPENED", "CLOSED"]
+        : [
+            ...new Set(
+                values
+                    .map(ticket => ticket[field])
+                    .filter(
+                        v =>
+                            v !== null &&
+                            v !== undefined &&
+                            String(v).trim() !== ""
+                    ) .map(v => String(v))
+            )
+        ].sort(
+            (a,b) =>
+                a.localeCompare(b,undefined,{
+                    numeric: true,
+                    sensitivity: "base"
+                })
+        );
 
     return (
         <div className="column-filter-wrapper">

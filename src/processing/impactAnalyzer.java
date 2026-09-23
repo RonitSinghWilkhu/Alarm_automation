@@ -1,11 +1,10 @@
 package processing;
 
+import java.util.ArrayList;
+import java.util.List;
 import model.alarm;
 import model.alarmGroup;
 import model.impactResult;
-
-import java.util.ArrayList;
-import java.util.List;
 
 public class impactAnalyzer {
 
@@ -23,7 +22,16 @@ public class impactAnalyzer {
 
             boolean thresholdBreached = false;
 
+            String createdAt = null;
+
             for (alarm a : group.getAlarms()) {
+
+                if (
+                    createdAt == null ||
+                    a.getTimestamp().compareTo(createdAt) < 0
+                ) {
+                    createdAt = a.getTimestamp();
+                }
 
                 usersImpacted = Math.max(
                         usersImpacted,
@@ -54,7 +62,8 @@ public class impactAnalyzer {
                     usersImpacted,
                     severity,
                     thresholdBreached,
-                    impactLevel
+                    impactLevel,
+                    createdAt
             );
 
             results.add(result);

@@ -13,15 +13,18 @@ import CloseTicketModal from "./modals/CloseTicketModal";
 import TroubleshootModal from "./modals/TroubleshootModal";
 import MessageModal from "./modals/MessageModal";
 import ToastHost from "./components/ToastHost";
+import ReopenTicketModal from "./modals/ReopenTicketModal";
+import ConfirmReopenModal from "./modals/ConfirmReopenModal";
 import{
     fetchTickets as getTickets,
     fetchNotifications as getNotifications,
     closeTicket as closeTicketAPI,
     upgradeTicket as upgradeTicketAPI,
     troubleshootTicket as troubleshootTicketAPI,
-    acknowledgeTicket as acknowledgeTicketAPI
+    acknowledgeTicket as acknowledgeTicketAPI,
+    reopenTicket as reopenTicketAPI
 } from "./api/api";
-import { getTicketSlaStatus } from "./utils/priorityHistory";
+import { getTicketSlaStatus , getTicketActivityTime } from "./utils/priorityHistory";
 
 // const API_BASE = "http://127.0.0.1:8001";
 
@@ -76,11 +79,15 @@ function App() {
     const [toasts, setToasts] = useState([]);
 
     // Modal State
-    const [activeModal, setActiveModal] = useState(null); // 'details', 'upgrade', 'close', 'troubleshoot', 'message'
+    const [activeModal, setActiveModal] = useState(null); // 'details', 'upgrade', 'close', 'reopen', 'troubleshoot', 'message'
     const [selectedTicket, setSelectedTicket] = useState(null);
     const [logoutModalOpen, setLogoutModalOpen] = useState(false);
     const [troubleshootData, setTroubleshootData] = useState({ recommendation: "", historicalIncidents: [] });
     const [messageData, setMessageData] = useState({ title: "", message: "" });
+    const [reopenData, setReopenData] = useState({
+        priority: "",
+        reason: ""
+    });
 
     // --- Helpers ---
     const addToast = useCallback((type, title, message) => {
@@ -222,6 +229,7 @@ function App() {
     const openDetails = (ticket) => { setSelectedTicket(ticket); setActiveModal("details"); };
     const openUpgrade = (ticket) => { setSelectedTicket(ticket); setActiveModal("upgrade"); };
     const openClose = (ticket) => { setSelectedTicket(ticket); setActiveModal("close"); };
+    const openReopen = (ticket) => {setSelectedTicket(ticket); setActiveModal("reopen");}
     
     const openTroubleshoot = async (ticket) => {
         setSelectedTicket(ticket);
@@ -292,6 +300,50 @@ function App() {
         }
     };
 
+    const confirmReopen = async (data) => {
+      if (!selectedTicket){
+          return
+      }
+
+      try {
+          const result = await reopenTicketAPI(
+            selectedTicket.ticketNumber,
+            data.priority,
+            data.reason
+          );
+
+          setTickets(prev =>
+              prev.map(ticket => 
+                  ticket.ticketNumber === selectedTicket.ticketNumber
+                      ? {
+                        ...ticket,
+                        status: "OPEN",
+                        priority: result.priority,
+                        reopenedAt: result.reopenedAt
+                      }
+                      : ticket
+              )
+          );
+
+          await fetchNotifications();
+          closeAllModals();
+
+          addToast(
+              "success",
+              "Ticket Reopened",
+              `${selectedTicket.ticketNumber} reopened as ${result.priority}.`
+          );
+      } catch(error){
+
+          setMessageData({
+              title: "Reopened Failed",
+              message: error.message || "Could not reopen the ticket."
+          });
+
+          setActiveModal("message");
+      }
+    };
+
     const confirmAcknowledge = async (ticketNumber) => {
       try{
         await acknowledgeTicketAPI(ticketNumber);
@@ -307,8 +359,22 @@ function App() {
     const filteredTickets = tickets.filter(ticket => {
         // Column filters
         const matchesColumns = Object.entries(columnFilters).every(([key, value]) => {
-            if (value === "ALL") return true;
-            return String(ticket[key]) === String(value);
+          if(value === "ALL"){
+            return true;
+          }
+
+          if(key === "status"){
+            const displayStatus = 
+                ticket.status === "CLOSED"
+                    ? "CLOSED"
+                    : ticket.reopenedAt
+                        ? "REOPENED"
+                        : "OPEN";
+
+            return displayStatus === value;
+          }
+
+          return String(ticket[key]) === String(value);
         });
         
         // Search
@@ -320,6 +386,17 @@ function App() {
         ].join(" ").toLowerCase().includes(term);
 
         return matchesColumns && matchesSearch;
+    })
+    .sort((a,b) => {
+      const activityTimeA = getTicketActivityTime(
+        a, notifications
+      );
+
+      const activityTimeB = getTicketActivityTime(
+        b, notifications
+      );
+
+      return activityTimeB - activityTimeA;
     });
 
     const sidebarNotificationCount = tickets.filter(
@@ -378,6 +455,7 @@ function App() {
                               onUpgrade={openUpgrade}
                               onTroubleshoot={openTroubleshoot}
                               onClose={openClose}
+                              onReopen={openReopen}
                           />
                       </>
                     )}
@@ -443,6 +521,30 @@ function App() {
             {activeModal === "troubleshoot" && <TroubleshootModal ticket={selectedTicket} recommendation={troubleshootData.recommendation} historicalIncidents={troubleshootData.historicalIncidents} onClose={closeAllModals} />}
             {activeModal === "message" && <MessageModal title={messageData.title} message={messageData.message} onClose={closeAllModals} />}
             {logoutModalOpen && (<LogoutConfirmModal onConfirm={handleLogout} onCancel={cancelLogout} />)}
+            {activeModal === "reopen" && (
+                <ReopenTicketModal
+                  ticket={selectedTicket}
+                  onClose={closeAllModals}
+                  onContinue={(data) => {
+
+                      setReopenData(data);
+                      setActiveModal("confirmReopen");
+                  }}
+                />
+            )}
+            {activeModal === "confirmReopen" && (
+                <ConfirmReopenModal
+                    ticket={selectedTicket}
+                    priority={reopenData.priority}
+                    reason={reopenData.reason}
+                    onClose={() => {
+                        setActiveModal("reopen");
+                    }}
+                    onConfirm={() => {
+                        confirmReopen(reopenData);
+                    }}
+                />
+            )}
             {/* Toasts */}
             <ToastHost toasts={toasts} onDismiss={removeToast} />
         </div>

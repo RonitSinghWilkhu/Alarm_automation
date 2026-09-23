@@ -7,7 +7,7 @@ public class notificationGenerator {
     public String buildMessage(ticket ticket){
 
         return "New " + ticket.getPriority() +
-                "ticket created for " +
+                " ticket created for " +
                 ticket.getAlarmType() +
                 " on " + 
                 ticket.getNode();

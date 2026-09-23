@@ -11,7 +11,7 @@ function Settings({ darkMode, onToggleTheme, refreshInterval, onRefreshIntervalC
                     <div className="settings-header">
                         <div>
                             <h2>Settings</h2>
-                            <p>Manage your dashboard preferences and system configuration.</p>
+                            <p>Configure your dashboard, refresh, and appearance preferences.</p>
                         </div>
                     </div>
 

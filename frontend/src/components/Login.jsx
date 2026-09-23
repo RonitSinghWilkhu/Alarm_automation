@@ -8,6 +8,7 @@ function Login({ onLogin}) {
     const [password, setPassword] = useState("");
     const [showPassword, setShowPassword] = useState(false);
     const [error, setError] = useState("");
+    const [loginSuccess, setLoginSuccess] = useState(false);
 
     const handleSubmit = (event) => {
 
@@ -24,7 +25,11 @@ function Login({ onLogin}) {
         }
 
         setError("");
-        onLogin();
+        setLoginSuccess(true);
+
+        setTimeout(() => {
+            onLogin();
+        }, 1100);  
     };
 
     return (
@@ -74,102 +79,135 @@ function Login({ onLogin}) {
 
                     </div>
 
+                    {loginSuccess ? (
+                        <div className="login-success">
+                            
+                            <div className="login-success-icon">
 
-                    <form onSubmit={handleSubmit}>
+                                <svg
+                                    viewBox="0 0 52 52"
+                                    aria-hidden="true"
+                                >
+                                    <circle
+                                        className="login-success-circle"
+                                        cx="26"
+                                        cy="26"
+                                        r="24"
+                                    />
 
-                        <div className="login-field">
-
-                            <label htmlFor="username">
-                                Username / Email
-                            </label>
-
-                            <div className="login-input">
-
-                                <User size={17} />
-
-                                <input
-                                    id="username"
-                                    type="text"
-                                    value={username}
-                                    onChange={(event) => {
-                                        setUsername(event.target.value);
-                                        setError("");
-                                    }}
-                                    placeholder="Enter your username or email"
-                                    autoComplete="username"
-                                />
-
+                                    <path
+                                        className="login-success-check"
+                                        d="M14 27 L22 35 L39 18"
+                                    />
+                                </svg>
                             </div>
 
+                            <h3>Login Successful</h3>
+
+                            <p>
+                                Redirecting to EriAlarm....
+                            </p>
                         </div>
+                    ) : (
+
+                        <>
+
+                            <form onSubmit={handleSubmit}>
+
+                                <div className="login-field">
+
+                                    <label htmlFor="username">
+                                        Username / Email
+                                    </label>
+
+                                    <div className="login-input">
+
+                                        <User size={17} />
+
+                                        <input
+                                            id="username"
+                                            type="text"
+                                            value={username}
+                                            onChange={(event) => {
+                                                setUsername(event.target.value);
+                                                setError("");
+                                            }}
+                                            placeholder="Enter your username or email"
+                                            autoComplete="username"
+                                        />
+
+                                    </div>
+
+                                </div>
 
 
-                        <div className="login-field">
+                                <div className="login-field">
 
-                            <label htmlFor="password">
-                                Password
-                            </label>
+                                    <label htmlFor="password">
+                                        Password
+                                    </label>
 
-                            <div className="login-input">
+                                    <div className="login-input">
 
-                                <LockKeyhole size={17} />
+                                        <LockKeyhole size={17} />
 
-                                <input
-                                    id="password"
-                                    type={showPassword ? "text" : "password"}
-                                    value={password}
-                                    onChange={(event) => {
-                                        setPassword(event.target.value);
-                                        setError("");
-                                    }}
-                                    placeholder="Enter your password"
-                                    autoComplete="current-password"
-                                />
+                                        <input
+                                            id="password"
+                                            type={showPassword ? "text" : "password"}
+                                            value={password}
+                                            onChange={(event) => {
+                                                setPassword(event.target.value);
+                                                setError("");
+                                            }}
+                                            placeholder="Enter your password"
+                                            autoComplete="current-password"
+                                        />
+
+                                        <button
+                                            type="button"
+                                            className="password-toggle"
+                                            onClick={() =>
+                                                setShowPassword(prev => !prev)
+                                            }
+                                            aria-label={
+                                                showPassword
+                                                    ? "Hide password"
+                                                    : "Show password"
+                                            }
+                                        >
+                                            {showPassword
+                                                ? <EyeOff size={17} />
+                                                : <Eye size={17} />
+                                            }
+                                        </button>
+
+                                    </div>
+
+                                </div>
+
+
+                                {error && (
+                                    <p className="login-error">
+                                        {error}
+                                    </p>
+                                )}
+
 
                                 <button
-                                    type="button"
-                                    className="password-toggle"
-                                    onClick={() =>
-                                        setShowPassword(prev => !prev)
-                                    }
-                                    aria-label={
-                                        showPassword
-                                            ? "Hide password"
-                                            : "Show password"
-                                    }
+                                    type="submit"
+                                    className="login-button"
                                 >
-                                    {showPassword
-                                        ? <EyeOff size={17} />
-                                        : <Eye size={17} />
-                                    }
+                                    Login
                                 </button>
 
-                            </div>
-
-                        </div>
+                            </form>
 
 
-                        {error && (
-                            <p className="login-error">
-                                {error}
+                            <p className="login-footer">
+                                AlarmOps · Ericsson Operations
                             </p>
-                        )}
-
-
-                        <button
-                            type="submit"
-                            className="login-button"
-                        >
-                            Login
-                        </button>
-
-                    </form>
-
-
-                    <p className="login-footer">
-                        AlarmOps · Ericsson Operations
-                    </p>
-
+                        </>
+                    )}
                 </div>
 
             </section>

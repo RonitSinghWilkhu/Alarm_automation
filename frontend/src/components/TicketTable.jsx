@@ -12,8 +12,17 @@ function TicketTable({
     onDetails, 
     onUpgrade, 
     onTroubleshoot, 
-    onClose 
+    onClose,
+    onReopen
 }) {
+
+    const statusFilterTickets = allTickets.map(ticket => ({
+        ...ticket,
+        status: ticket.reopenedAt
+            ? "REQUIRED"
+            : ticket.status
+    }));
+
     return (
         <div className="panel">
             <div className="panel-header">
@@ -67,7 +76,7 @@ function TicketTable({
                                 <ColumnFilter label="Team" field="assignedTeam" values={allTickets} value={columnFilters.assignedTeam} onChange={onColumnFilterChange} />
                             </th>
                             <th>
-                                <ColumnFilter label="Status" field="status" values={allTickets} value={columnFilters.status} onChange={onColumnFilterChange} />
+                                <ColumnFilter label="Status" field="status" values={statusFilterTickets} value={columnFilters.status} onChange={onColumnFilterChange} />
                             </th>
                             <th className="col-actions">Actions</th>
                         </tr>
@@ -107,6 +116,7 @@ function TicketTable({
                                     onUpgrade={onUpgrade}
                                     onTroubleshoot={onTroubleshoot}
                                     onClose={onClose}
+                                    onReopen={onReopen}
                                 />
                             ))
                         )}
