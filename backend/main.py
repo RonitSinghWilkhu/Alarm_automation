@@ -1,10 +1,11 @@
-from fastapi import FastAPI , HTTPException
+from fastapi import FastAPI , HTTPException, Depends 
 from fastapi.middleware.cors import CORSMiddleware
-import json
-import os
 from pydantic import BaseModel
 from backend.rag import troubleshoot_alarm, _build_vector_store , _get_llm
 from datetime import datetime
+from sqlalchemy.orm import Session
+from backend.database import get_db
+from backend.models import Ticket , TicketEvent
 
 app=FastAPI()
 
@@ -19,9 +20,6 @@ app.add_middleware(
 
     allow_headers=["*"]
 )
-
-TICKETS_FILE = "output/tickets.json"
-NOTIFICATIONS_FILE = "output/notifications.json"
 
 class PriorityUpdate(BaseModel):
     priority: str
@@ -38,227 +36,212 @@ def home():
     }
 
 @app.get("/tickets")
-def get_tickets():
+def get_tickets(
+    db: Session = Depends(get_db)
+):
 
-    if not os.path.exists(TICKETS_FILE):
+    tickets = (
+        db.query(Ticket)
+        .all()
+    )
 
-        return{
-            "message": "tickets.json not found",
-            "tickets" : []
+    return [
+        {
+            "ticketNumber": ticket.ticket_number,
+
+            "node": ticket.node,
+
+            "alarmType": ticket.alarm_type,
+
+            "occurrenceCount": ticket.occurrence_count,
+
+            "usersImpacted": ticket.users_impacted,
+
+            "severity": ticket.severity,
+
+            "thresholdBreached": ticket.threshold_breached,
+
+            "impactLevel": ticket.impact_level,
+
+            "priority": ticket.priority,
+
+            "assignedTeam": (
+                ticket.team.name
+                if ticket.team
+                else None
+            ),
+
+            "status": ticket.status,
+
+            "reason": ticket.reason,
+
+            "createdAt": (
+                ticket.created_at.isoformat(
+                    sep=" "
+                )
+                if ticket.created_at
+                else None
+            ),
+
+            "updatedAt": (
+                ticket.updated_at.isoformat(
+                    sep=" "
+                )
+                if ticket.updated_at
+                else None
+            ),
+
+            "closedAt": (
+                ticket.closed_at.isoformat()
+                if ticket.closed_at
+                else None
+            ),
+
+            "reopenedAt": (
+                ticket.reopened_at.isoformat()
+                if ticket.reopened_at
+                else None
+            )
         }
 
-    with open(
-        TICKETS_FILE,
-        "r",
-    encoding="utf-8"
-    ) as file:
-
-        tickets = json.load(file)
-
-    return tickets
+        for ticket in tickets
+    ]
 
 @app.put("/tickets/{ticket_number}/priority")
 def update_priority(
     ticket_number: str,
-    update: PriorityUpdate
+    update: PriorityUpdate,
+    db: Session = Depends(get_db)
 ):
     allowed_priorities = ["P1", "P2", "P3", "P4"]
+
     if update.priority not in allowed_priorities:
-        raise HTTPException(status_code=400 , detail="Invalid priority")
-    
-    if not os.path.exists(TICKETS_FILE):
-        raise HTTPException(status_code=500 , detail="ticket.json not found")
-    
-    with open(
-        TICKETS_FILE,
-        "r",
-        encoding="utf-8"
-    ) as file:
-        tickets = json.load(file)
-    
-    ticket_found = False
-    for ticket in tickets:
-        if ticket["ticketNumber"] == ticket_number:
-            if ticket["status"] == "CLOSED":
-                raise HTTPException(status_code=409 , detail="cannot upgrade a closed ticket")
-            
-            previous_priority = ticket["priority"]
-            if update.priority == previous_priority:
-                raise HTTPException(status_code=400 , detail="Ticket is already at this priority")
-            
-            ticket["priority"] = update.priority
-            
-            # Determine if this is an upgrade or downgrade
-            # P1 is highest (1), P4 is lowest (4)
-            priority_order = {"P1": 1, "P2": 2, "P3": 3, "P4": 4}
-            previous_num = priority_order[previous_priority]
-            new_num = priority_order[update.priority]
-            
-            # Lower number = higher priority = upgrade
-            # Higher number = lower priority = downgrade
-            is_upgrade = new_num < previous_num
-            event_type = "PRIORITY_UPGRADE" if is_upgrade else "PRIORITY_DOWNGRADE"
-            action_word = "upgraded" if is_upgrade else "downgraded"
-            
-            notifications = []
-            if os.path.exists(NOTIFICATIONS_FILE):
-                with open(
-                    NOTIFICATIONS_FILE,
-                    "r",
-                    encoding="utf-8"
-                ) as file:
-                    notifications = json.load(file)
-            
-            upgrade_time = datetime.now().isoformat(timespec="seconds")
-            upgrade_notification = {
-                "ticketNumber": ticket_number,
-                "assignedTeam": ticket["assignedTeam"],
-                "message": 
-                    f"Ticket {ticket_number} {action_word} from "
-                    f"{previous_priority} to {update.priority} "
-                    f"on {upgrade_time} for "
-                    f"{ticket['alarmType']} on {ticket['node']}",
-                "status": "ACKNOWLEDGED",
-                "eventType": event_type,
-                "previousPriority": previous_priority,
-                "newPriority": update.priority,
-                "timestamp": upgrade_time,
-                "alarmType": ticket["alarmType"],
-                "node": ticket["node"]
-            }
-            notifications.append(upgrade_notification)
-            
-            with open(
-                NOTIFICATIONS_FILE,
-                "w",
-                encoding="utf-8",
-            ) as file:
-                json.dump(
-                    notifications,
-                    file,
-                    indent=4
-                )
-            
-            ticket_found = True
-            break
-    
-    if not ticket_found:
-        raise HTTPException(status_code=404, detail="Ticket not found")
-    
-    with open(
-        TICKETS_FILE,
-        "w",
-        encoding="utf-8"
-    ) as file:
-        json.dump(
-            tickets,
-            file,
-            indent=4
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid priority raised"
         )
-    
-    return {
+
+    ticket=(
+        db.query(Ticket)
+        .filter(
+            Ticket.ticket_number == ticket_number
+        ).first()
+    )
+
+    if not ticket:
+        raise HTTPException(
+            status_code=404,
+            detail="Ticket not found"
+        )
+
+    if ticket.status == "CLOSED":
+        raise HTTPException(
+            status_code=409,
+            detail="cannot upgrade a closed ticket"
+        )
+
+    previous_priority = ticket.priority
+
+    if update.priority == previous_priority:
+        raise HTTPException(
+            status_code=400,
+            detail="Ticket is already at this priority"
+        )
+
+    priority_order = {
+        "P1": 1,
+        "P2": 2,
+        "P3": 3,
+        "P4": 4
+    }
+
+    previous_num = priority_order[previous_priority]
+    new_num = priority_order[update.priority]
+
+    is_upgrade = new_num< previous_num
+
+    event_type = (
+        "PRIORITY_UPGRADE"
+        if is_upgrade
+        else
+        "PRIORITY_DOWNGRADE"
+    )
+
+    upgrade_time = datetime.now()
+    ticket.priority = update.priority
+
+    event= TicketEvent(
+        ticket_id = ticket.id,
+        event_type = event_type,
+        previous_priority=previous_priority,
+        new_priority=update.priority,
+        priority=update.priority,
+        status="ACKNOWLEDGED",
+        timestamp=upgrade_time
+    )
+
+    db.add(event)
+    db.commit()
+
+    return{
         "message": "Ticket priority updated",
         "ticketNumber": ticket_number,
         "priority": update.priority
     }
 
 @app.put("/tickets/{ticket_number}/close")
-def close_ticket(ticket_number: str):
+def close_ticket(
+    ticket_number: str,
+    db: Session = Depends(get_db)
+):
+    ticket=(
+        db.query(Ticket)
+        .filter(
+            Ticket.ticket_number == ticket_number
+        ).first()
+    )
 
-    if not os.path.exists(TICKETS_FILE):
-        raise HTTPException(status_code= 500 , detail="tickets.json not found")
-
-    with open(
-        TICKETS_FILE,
-        "r",
-        encoding="utf-8"
-    ) as file:
-
-        tickets = json.load(file)
-
-    ticket_found = False
-
-    for ticket in tickets:
-
-        if ticket["ticketNumber"] == ticket_number:
-
-            if ticket["status"] == "CLOSED":
-                raise HTTPException(status_code= 409 , detail="Ticket is already closed")
-            ticket["status"] = "CLOSED"
-
-            ticket["closedAt"] = datetime.now().isoformat(timespec="seconds")
-
-            notifications = []
-
-            if os.path.exists(NOTIFICATIONS_FILE):
-
-                with open(
-                    NOTIFICATIONS_FILE,
-                    "r",
-                    encoding="utf-8"
-                ) as file:
-                    notifications=json.load(file)
-
-            close_notification = {
-                "ticketNumber" : ticket_number,
-                "assignedTeam": ticket["assignedTeam"],
-                "message":(
-                    "Ticket closed\n"
-                    f"Time: {ticket['closedAt']}"
-                ),
-                "status": "RESOLVED",
-                "eventType": "TICKET_CLOSED",
-                "priority": ticket["priority"],
-                "timestamp": ticket["closedAt"],
-                "alarmType": ticket["alarmType"],
-                "node": ticket["node"]    
-            }
-
-            notifications.append(close_notification)
-
-            with open(
-                NOTIFICATIONS_FILE,
-                "w",
-                encoding="utf-8"
-            ) as file:
-
-                json.dump(
-                    notifications,
-                    file,
-                    indent=4
-                )
-
-            ticket_found = True
-
-            break
-
-    if not ticket_found:
-        raise HTTPException(status_code=404 , detail="Ticket not found")
-    with open(
-        TICKETS_FILE,
-        "w",
-        encoding="utf-8"
-    ) as file:
-
-        json.dump(
-            tickets,
-            file,
-            indent=4
+    if not ticket:
+        raise HTTPException(
+            status_code=404,
+            detail="Ticket not found"
         )
 
-    return {
+    if ticket.status == "CLOSED":
+        raise HTTPException(
+            status_code=409,
+            detail="Ticket is already closed"
+        )
+
+    closed_at = datetime.now()
+
+    ticket.status="CLOSED"
+    ticket.closed_at=closed_at
+
+    event = TicketEvent(
+        ticket_id=ticket.id,
+        event_type = "TICKET_CLOSED",
+        priority=ticket.priority,
+        status="RESOLVED",
+        timestamp=closed_at
+    )
+
+    db.add(event)
+    db.commit()
+
+    return{
         "message": "Ticket closed successfully",
         "ticketNumber": ticket_number,
         "status": "CLOSED",
-        "closedAt": ticket["closedAt"]
+        "closedAt": closed_at.isoformat(timespec="seconds")
     }
 
 @app.put("/tickets/{ticket_number}/reopen")
 def reopen_ticket(
     ticket_number: str,
-    update: ReopenUpdate
+    update: ReopenUpdate,
+    db: Session = Depends(get_db)
 ):
-
     allowed_priorities = [
         "P1",
         "P2",
@@ -266,284 +249,249 @@ def reopen_ticket(
         "P4"
     ]
 
-
     if update.priority not in allowed_priorities:
-
         raise HTTPException(
             status_code=400,
             detail="Invalid priority"
         )
 
-
     reason = update.reason.strip()
 
-
     if not reason:
-
         raise HTTPException(
             status_code=400,
             detail="Reopen reason is required"
         )
 
+    ticket = (
+        db.query(Ticket)
+        .filter(
+            Ticket.ticket_number == ticket_number
+        ).first()
+    )
 
-    if not os.path.exists(TICKETS_FILE):
-
-        raise HTTPException(
-            status_code=500,
-            detail="tickets.json not found"
-        )
-
-
-    with open(
-        TICKETS_FILE,
-        "r",
-        encoding="utf-8"
-    ) as file:
-
-        tickets = json.load(file)
-
-
-    ticket_found = False
-    reopened_at = None
-
-
-    for ticket in tickets:
-
-        if ticket["ticketNumber"] != ticket_number:
-            continue
-
-
-        if ticket["status"] != "CLOSED":
-
-            raise HTTPException(
-                status_code=409,
-                detail="Ticket is already open"
-            )
-
-
-        reopened_at = datetime.now().isoformat(
-            timespec="seconds"
-        )
-
-
-        ticket["status"] = "OPEN"
-
-        ticket["priority"] = update.priority
-
-        ticket["reopenedAt"] = reopened_at
-
-        ticket_found = True
-
-
-        break
-
-
-    if not ticket_found:
-
+    if not ticket:
         raise HTTPException(
             status_code=404,
             detail="Ticket not found"
         )
 
-
-    with open(
-        TICKETS_FILE,
-        "w",
-        encoding="utf-8"
-    ) as file:
-
-        json.dump(
-            tickets,
-            file,
-            indent=4
+    if ticket.status != "CLOSED":
+        raise HTTPException(
+            status_code=409,
+            detail="Ticket is already open"
         )
 
+    reopened_at = datetime.now()
 
-    notifications = []
+    ticket.status = "OPEN"
+    ticket.priority=update.priority
+    ticket.reopened_at=reopened_at
 
-
-    if os.path.exists(NOTIFICATIONS_FILE):
-
-        with open(
-            NOTIFICATIONS_FILE,
-            "r",
-            encoding="utf-8"
-        ) as file:
-
-            notifications = json.load(file)
-
-
-    reopen_notification = {
-
-        "ticketNumber": ticket_number,
-
-        "assignedTeam": ticket["assignedTeam"],
-
-        "message": (
-            "Ticket reopened\n"
-            f"Current priority: {update.priority}\n"
-            f"Reason: {reason}\n"
-            f"Time: {reopened_at}"
-        ),
-
-        "status": "ACKNOWLEDGED",
-
-        "eventType": "TICKET_REOPENED",
-
-        "priority": update.priority,
-
-        "newPriority": update.priority,
-
-        "reason": reason,
-
-        "timestamp": reopened_at,
-
-        "alarmType": ticket["alarmType"],
-
-        "node": ticket["node"]
-
-    }
-
-
-    notifications.append(
-        reopen_notification
+    event= TicketEvent(
+        ticket_id=ticket.id,
+        event_type="TICKET_REOPENED",
+        priority=update.priority,
+        new_priority=update.priority,
+        reason=reason,
+        status="ACKNOWLEDGED",
+        timestamp=reopened_at
     )
 
+    db.add(event)
+    db.commit()
 
-    with open(
-        NOTIFICATIONS_FILE,
-        "w",
-        encoding="utf-8"
-    ) as file:
-
-        json.dump(
-            notifications,
-            file,
-            indent=4
-        )
-
-
-    return {
-
+    return{
         "message": "Ticket reopened successfully",
-
         "ticketNumber": ticket_number,
-
         "status": "OPEN",
-
         "priority": update.priority,
-
         "reason": reason,
-
-        "reopenedAt": reopened_at
-
+        "reopenedAt": reopened_at.isoformat(timespec="seconds")
     }
 
 @app.put("/tickets/{ticket_number}/acknowledge")
-def acknowledge_ticket(ticket_number: str):
-    if not os.path.exists(NOTIFICATIONS_FILE):
-        raise HTTPException(status_code=500, detail="notifications.json not found")
+def acknowledge_ticket(
+    ticket_number: str,
+    db: Session=Depends(get_db)
+):
 
-    with open(NOTIFICATIONS_FILE, "r", encoding="utf-8") as file:
-        notifications = json.load(file)
+    events = (
+        db.query(TicketEvent)
+        .join(Ticket)
+        .filter(
+            Ticket.ticket_number == ticket_number
+        )
+        .order_by(
+            TicketEvent.timestamp.desc(),
+            TicketEvent.id.desc()
+        ).all()
+    )
 
-    # Acknowledging is a UI "mark as read" action, NOT a lifecycle transition.
-    # Historical lifecycle events (TICKET_CREATED, PRIORITY_*, TICKET_CLOSED,
-    # TICKET_REOPENED) must remain immutable. We therefore acknowledge ONLY the
-    # single most recent event for this ticket, leaving all prior events intact.
+    if not events:
+        raise HTTPException(
+            status_code=404,
+            detail="no events for ticket"
+        )
 
-    # Find the index of the latest notification for this ticket (by timestamp,
-    # falling back to insertion order for events without a timestamp).
-    latest_index = None
-    latest_key = None
-    for index, notification in enumerate(notifications):
-        if notification.get("ticketNumber") != ticket_number:
-            continue
-
-        # Sort key: (timestamp string, insertion index). Empty timestamps sort
-        # lowest, so a later-appended event without a timestamp still wins via
-        # the insertion index tiebreaker.
-        key = (notification.get("timestamp") or "", index)
-        if latest_key is None or key > latest_key:
-            latest_key = key
-            latest_index = index
-
-    if latest_index is None:
-        raise HTTPException(status_code=404, detail="No notifications for ticket")
+    latest_event = events[0]
 
     updated = False
-    latest = notifications[latest_index]
-    if latest.get("status") not in ("ACKNOWLEDGED", "RESOLVED"):
-        latest["status"] = "ACKNOWLEDGED"
+
+    if latest_event.status not in(
+        "ACKNOWLEDGED",
+        "RESOLVED"
+    ):
+        latest_event.status = "ACKNOWLEDGED"
         updated = True
 
     if updated:
-        with open(NOTIFICATIONS_FILE, "w", encoding="utf-8") as file:
-            json.dump(notifications, file, indent=4)
+        db.commit()
 
-    return {
+    return{
         "message": "Latest notification acknowledged",
         "ticketNumber": ticket_number,
         "acknowledged": updated
     }
 
 @app.get("/notifications")
-def get_notifications():
+def get_notifications(db: Session = Depends(get_db)):
 
-    if not os.path.exists(NOTIFICATIONS_FILE):
-        return []
+    events = (
+        db.query(TicketEvent)
+        .order_by(TicketEvent.timestamp.desc())
+        .all()
+    )
 
-    with open(NOTIFICATIONS_FILE, "r", encoding="utf-8") as file:
-        notifications = json.load(file)
+    notifications = []
+
+    for event in events:
+
+        ticket = event.ticket
+
+        if not ticket:
+            continue
+
+        assigned_team = (
+            ticket.team.name
+            if ticket.team
+            else None
+        )
+
+        alarm_type = ticket.alarm_type
+        node = ticket.node
+
+        if event.event_type == "TICKET_CREATED":
+
+            message = (
+                f"New {event.priority} ticket created "
+                f"for {alarm_type} on {node}"
+            )
+
+        elif event.event_type == "PRIORITY_UPGRADE":
+
+            message = (
+                f"Ticket upgraded from "
+                f"{event.previous_priority} "
+                f"to "
+                f"{event.new_priority}"
+            )
+
+        elif event.event_type == "PRIORITY_DOWNGRADE":
+
+            message = (
+                f"Ticket downgraded from "
+                f"{event.previous_priority} "
+                f"to "
+                f"{event.new_priority}"
+            )
+
+        elif event.event_type == "TICKET_CLOSED":
+
+            message = "Ticket closed"
+
+        elif event.event_type == "TICKET_REOPENED":
+
+            message = (
+                "Ticket reopened\n"
+                f"Current priority: {event.priority}\n"
+                f"Reason: {event.reason}\n"
+                f"Time: {event.timestamp.isoformat()}"
+            )
+
+        else:
+
+            message = ""
+
+        notifications.append(
+            {
+                "ticketNumber": ticket.ticket_number,
+
+                "assignedTeam": assigned_team,
+
+                "message": message,
+
+                "status": event.status,
+
+                "eventType": event.event_type,
+
+                "previousPriority": event.previous_priority,
+
+                "newPriority": event.new_priority,
+
+                "priority": event.priority,
+
+                "reason": event.reason,
+
+                "timestamp": event.timestamp.isoformat(),
+
+                "alarmType": alarm_type,
+
+                "node": node
+            }
+        )
 
     return notifications
 
 @app.get("/troubleshoot/{ticket_number}")
-def troubleshoot(ticket_number: str):
-
-    if not os.path.exists(TICKETS_FILE):
-        return {
-            "alarmType": "UNKNOWN",
-            "recommendation": "Tickets file not found."
-        }
-
-    with open(TICKETS_FILE, "r", encoding="utf-8") as file:
-        tickets = json.load(file)
-
-    ticket = None
-
-    for t in tickets:
-        if t["ticketNumber"] == ticket_number:
-            ticket = t
-            break
+def troubleshoot(
+    ticket_number: str,
+    db: Session = Depends(get_db)
+):
+    ticket=(
+        db.query(Ticket)
+        .filter(
+            Ticket.ticket_number == ticket_number
+        ).first()
+    )
 
     if not ticket:
-        return {
-            "alarmType": "UNKNOWN",
-            "recommendation": "Ticket not found."
-        }
+        raise HTTPException(
+            status_code=404,
+            detail="Ticket not found"
+        )
 
     try:
         result = troubleshoot_alarm(
-            ticket["alarmType"],
-            ticket["node"],
-            ticket["occurrenceCount"],
-            ticket["usersImpacted"],
-            ticket["severity"],
-            ticket["thresholdBreached"],
-            ticket["impactLevel"],
-            ticket["priority"],
-            ticket["assignedTeam"]
+            ticket.alarm_type,
+            ticket.node,
+            ticket.occurrence_count,
+            ticket.users_impacted,
+            ticket.severity,
+            ticket.threshold_breached,
+            ticket.impact_level,
+            ticket.priority,
+            ticket.team.name if ticket.team else None
         )
-    except Exception as e:
-        print(f"Troubleshoot error: {e}")
-        return {
-            "alarmType": ticket["alarmType"],
-            "recommendation": f"Troubleshooting unavailable: {str(e)}"
-        }
 
-    return {
-        "alarmType": ticket["alarmType"],
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Troubleshooting failed: {str(e)}"
+        )
+    
+    return{
+        "alarmType": ticket.alarm_type,
         "recommendation": result["recommendation"],
         "historicalIncidents": result["historicalIncidents"]
     }

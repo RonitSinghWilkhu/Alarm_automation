@@ -19,7 +19,7 @@ function TicketTable({
     const statusFilterTickets = allTickets.map(ticket => ({
         ...ticket,
         status: ticket.reopenedAt
-            ? "REQUIRED"
+            ? "REOPENED"
             : ticket.status
     }));
 
@@ -48,6 +48,13 @@ function TicketTable({
                         onClick={() => onColumnFilterChange("status", "CLOSED")}
                     >
                         Closed
+                    </button>
+
+                    <button
+                        className={`seg ${columnFilters.status === "REOPENED" ? "active" : ""}`}
+                        onClick={() => onColumnFilterChange("status", "REOPENED")}
+                    >
+                        Reopened
                     </button>
                 </div>
             </div>
