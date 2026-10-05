@@ -1,8 +1,11 @@
 import { useState } from "react";
 import { X, RotateCcw } from "lucide-react";
+import { useModalA11y } from "../hooks/useModalA11y";
 
 
 function ReopenTicketModal({ ticket, onClose, onContinue }) {
+
+    const modalRef = useModalA11y(onClose);
 
     const [priority, setPriority] = useState(ticket?.priority || "P3");
 
@@ -43,7 +46,7 @@ function ReopenTicketModal({ ticket, onClose, onContinue }) {
     return (
         <div className="modal-overlay">
 
-            <div className="modal small-modal">
+            <div className="modal small-modal" role="dialog" aria-modal="true" tabIndex={-1} ref={modalRef}>
 
                 <div className="modal-header">
 

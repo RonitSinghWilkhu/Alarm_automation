@@ -2,6 +2,9 @@ import { useState, useEffect, useCallback } from "react";
 import Sidebar from "./components/Sidebar";
 import Topbar from "./components/Topbar";
 import Login from "./components/Login";
+import Register from "./components/Register";
+import ForgotPassword from "./components/ForgotPassword";
+import ResetPassword from "./components/ResetPassword";
 import SummaryCards from "./components/SummaryCards";
 import TicketTable from "./components/TicketTable";
 import Notifications from "./components/Notifications";
@@ -22,7 +25,9 @@ import{
     upgradeTicket as upgradeTicketAPI,
     troubleshootTicket as troubleshootTicketAPI,
     acknowledgeTicket as acknowledgeTicketAPI,
-    reopenTicket as reopenTicketAPI
+    reopenTicket as reopenTicketAPI,
+    checkAuth,
+    logoutRequest
 } from "./api/api";
 import { getTicketSlaStatus , getTicketActivityTime } from "./utils/priorityHistory";
 
@@ -30,9 +35,17 @@ import { getTicketSlaStatus , getTicketActivityTime } from "./utils/priorityHist
 
 function App() {
     // authentication
-    const [isAuthenticated, setIsAuthenticated] = useState(() => {
-      return localStorage.getItem("alarmops-auth") === "true";
-    });
+        const getAuthScreenFromHash = () => {
+        const hash = window.location.hash;
+        if(hash.startsWith("#/reset-password")) {
+            return "reset-password";
+        }
+        return "login";
+    };
+    const [isAuthenticated, setIsAuthenticated] = useState(false);
+    const[currentUser, setCurrentUser] = useState(null);
+    const [authLoading, setAuthLoading] = useState(true);
+    const [authScreen, setAuthScreen] = useState(getAuthScreenFromHash);
     // --- State ---
     const [tickets, setTickets] = useState([]);
     const [notifications, setNotifications] = useState([]);
@@ -45,7 +58,10 @@ function App() {
         impactLevel: "ALL", priority: "ALL", assignedTeam: "ALL", status: "ALL"
     });
 
-    const [darkMode, setDarkMode] = useState(false);
+    const [darkMode, setDarkMode] = useState(() => {
+        const savedTheme = localStorage.getItem("alarmops-theme");
+        return savedTheme === "dark";
+    });
 
     const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
         const saved = localStorage.getItem("alarm-sidebar-collapsed");
@@ -75,6 +91,7 @@ function App() {
             ? hash
             : "dashboard";
     };
+
     const [activePage, setActivePage] = useState(getPageFromHash);
     const [toasts, setToasts] = useState([]);
 
@@ -97,6 +114,28 @@ function App() {
         setTimeout(() => {
             setToasts(prev => prev.filter(t => t.id !== id));
         }, duration);
+    }, []);
+
+    useEffect(() => {
+        const checkAuthentication = async () => {
+            try {
+                const user = await checkAuth();
+
+                if(user){
+                    setCurrentUser(user);
+                    setIsAuthenticated(true);
+                } else {
+                    setCurrentUser(null);
+                    setIsAuthenticated(false);
+                }
+            } catch (error) {
+                console.error("Authentication check failed:" , error);
+                setIsAuthenticated(false);
+            } finally {
+                setAuthLoading(false);
+            }
+        };
+        checkAuthentication();
     }, []);
 
     const removeToast = useCallback((id) => {
@@ -122,6 +161,10 @@ function App() {
             }
         } catch (error) {
             console.error("Error loading tickets:", error);
+            if(error.message === "UNAUTHORIZED") {
+                setIsAuthenticated(false);
+                return;
+            }
             setBackendOnline(false);
             if (backendOnline) {
                 setMessageData({ title: "Connection Error", message: "Could not connect to the backend API. Please ensure the service is running on port 8001." });
@@ -138,6 +181,10 @@ function App() {
             setNotifications(data);
         } catch (error) {
             console.error("Error loading notifications:", error);
+
+            if(error.message === "UNAUTHORIZED") {
+                setIsAuthenticated(false);
+            }
         }
     }, []);
 
@@ -180,6 +227,10 @@ function App() {
     useEffect(() => {
       const handleHashChange = () => {
         setActivePage(getPageFromHash());
+
+        if(window.location.hash.startsWith("#/reset-password")) {
+            setAuthScreen("reset-password");
+        }
       };
 
       window.addEventListener("hashchange", handleHashChange);
@@ -201,28 +252,44 @@ function App() {
         Promise.all([fetchTickets(), fetchNotifications()]).finally(() => setLoading(false));
     };
 
-    const handleLogin = () => {
-      localStorage.setItem(
-        "alarmops-auth",
-        "true"
-      );
-      window.location.hash = "#/dashboard";
-      setActivePage("dashboard");
-      setIsAuthenticated(true);
+    const handleAuthNavigation = (screen) => {
+        setAuthScreen(screen);
+    }
+
+    const handleLogin = async () => {
+
+        const user = await checkAuth();
+
+        if(!user) {
+            setCurrentUser(null);
+            setIsAuthenticated(false);
+            return;
+        }
+
+        setCurrentUser(user);
+
+        window.location.hash = "#/dashboard";
+        setActivePage("dashboard");
+        setIsAuthenticated(true);
+
     };
 
-    const handleLogout = () => {
-      localStorage.removeItem(
-        "alarmops-auth"
-      );
-      setLogoutModalOpen(false);
-      setActivePage("dashboard");
-      setIsAuthenticated(false);
+    const handleLogout = async () => {
+        try{
+            await logoutRequest();
+        } catch(error) {
+            console.error("Logout failed:", error);
+        } finally{
+            setLogoutModalOpen(false);
+            window.location.hash= "";
+            setActivePage("dashboard");
+            setIsAuthenticated(false);
+            setCurrentUser(null);
+        }
     };
 
     const cancelLogout = () => {
       setLogoutModalOpen(false);
-      setActivePage("dashboard");
     };
 
     // Modal Actions
@@ -267,18 +334,6 @@ function App() {
             addToast("success", "Ticket Upgraded", `${selectedTicket.ticketNumber} upgraded to ${newPriority}.`);
         } catch (error) {
             setMessageData({ title: "Connection Error", message: "Could not connect to backend API." });
-            setActiveModal("message");
-        }
-    };
-
-    const confirmAchnowledge = async (ticketNumber) => {
-        try{
-            await acknowledgeTicketAPI(ticketNumber);
-
-            await fetchNotifications();
-            addToast("success", "Notification Acknowledged", `${ticketNumber} has been acknowledged.`);
-        } catch(error){
-            setMessageData({title: "Connection Error", message: "Could not connect to backend API."});
             setActiveModal("message");
         }
     };
@@ -409,12 +464,41 @@ function App() {
           getTicketSlaStatus(ticket, notifications) === "WITHIN_SLA"
     ).length;
 
-    if(!isAuthenticated){
-      return(
-        <Login
-            onLogin={handleLogin}
-        />
-      );
+    if (authLoading) {
+        return null;
+    }
+
+    if(!isAuthenticated) {
+        if(authScreen === "register") {
+            return(
+                <Register
+                    onNavigate={handleAuthNavigation}
+                />
+            );
+        }
+
+        if(authScreen === "forgot-password") {
+            return(
+                <ForgotPassword
+                    onNavigate={handleAuthNavigation}
+                />
+            );
+        }
+
+        if(authScreen === "reset-password") {
+            return(
+                <ResetPassword
+                    onNavigate={handleAuthNavigation}
+                />
+            );
+        }
+
+        return(
+            <Login
+                onLogin={handleLogin}
+                onNavigate={handleAuthNavigation}
+            />
+        );
     }
 
     return (
@@ -437,6 +521,7 @@ function App() {
                     onRefresh={handleRefresh} 
                     onLogout={() => setLogoutModalOpen(true)}
                     activePage={activePage}
+                    user={currentUser}
                 />
                 
                 <main className="content">
@@ -464,7 +549,7 @@ function App() {
                       <Notifications
                           notifications={notifications}
                           tickets={tickets}
-                          onAcknowledge={confirmAchnowledge}
+                          onAcknowledge={confirmAcknowledge}
                       />
                     )}
 
@@ -473,6 +558,7 @@ function App() {
                           darkMode={darkMode}
                           onToggleTheme={() => setDarkMode(prev => !prev)}
                           refreshEnabled={refreshEnabled}
+                          backendInfo="FastAPI · Port 8001"
                           onToggleRefresh={() => {
                               setRefreshEnabled(prev => {
                                   const next = !prev;

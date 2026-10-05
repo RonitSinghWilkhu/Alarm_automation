@@ -1,14 +1,16 @@
 import { useState } from "react";
 import { X } from "lucide-react";
+import { useModalA11y } from "../hooks/useModalA11y";
 
 function UpgradeModal({ ticket, onClose, onUpgrade }) {
+    const modalRef = useModalA11y(onClose);
     const [priority, setPriority] = useState("P3");
 
     if (!ticket) return null;
 
     return (
         <div className="modal-overlay">
-            <div className="modal">
+            <div className="modal" role="dialog" aria-modal="true" tabIndex={-1} ref={modalRef}>
                 <div className="modal-header">
                     <h2>Upgrade Priority</h2>
                     <button className="modal-close" type="button" onClick={onClose} aria-label="Close modal">

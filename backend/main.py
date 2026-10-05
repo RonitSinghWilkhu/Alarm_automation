@@ -1,24 +1,38 @@
 from fastapi import FastAPI , HTTPException, Depends 
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from backend.rag import troubleshoot_alarm, _build_vector_store , _get_llm
+from backend.rag import troubleshoot_alarm, _build_vector_store , _get_llm, _get_reranker
 from datetime import datetime
 from sqlalchemy.orm import Session
 from backend.database import get_db
-from backend.models import Ticket , TicketEvent
+from backend.models import Ticket , TicketEvent, User
+from backend.auth import router as auth_router
+from backend.security import get_current_user
+import logging
 
 app=FastAPI()
+
+logger = logging.getLogger(__name__)
 
 app.add_middleware(
     CORSMiddleware,
 
-    allow_origins=["*"],
+    allow_origins=[
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:5500",
+        "http://127.0.0.1:5500"
+    ],
 
-    allow_credentials=False,
+    allow_credentials=True,
 
     allow_methods=["*"],
 
     allow_headers=["*"]
+)
+
+app.include_router(
+    auth_router
 )
 
 class PriorityUpdate(BaseModel):
@@ -37,7 +51,8 @@ def home():
 
 @app.get("/tickets")
 def get_tickets(
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
 
     tickets = (
@@ -111,7 +126,8 @@ def get_tickets(
 def update_priority(
     ticket_number: str,
     update: PriorityUpdate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     allowed_priorities = ["P1", "P2", "P3", "P4"]
 
@@ -192,7 +208,8 @@ def update_priority(
 @app.put("/tickets/{ticket_number}/close")
 def close_ticket(
     ticket_number: str,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     ticket=(
         db.query(Ticket)
@@ -240,7 +257,8 @@ def close_ticket(
 def reopen_ticket(
     ticket_number: str,
     update: ReopenUpdate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     allowed_priorities = [
         "P1",
@@ -313,7 +331,8 @@ def reopen_ticket(
 @app.put("/tickets/{ticket_number}/acknowledge")
 def acknowledge_ticket(
     ticket_number: str,
-    db: Session=Depends(get_db)
+    db: Session=Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
 
     events = (
@@ -355,7 +374,10 @@ def acknowledge_ticket(
     }
 
 @app.get("/notifications")
-def get_notifications(db: Session = Depends(get_db)):
+def get_notifications(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+    ):
 
     events = (
         db.query(TicketEvent)
@@ -456,7 +478,8 @@ def get_notifications(db: Session = Depends(get_db)):
 @app.get("/troubleshoot/{ticket_number}")
 def troubleshoot(
     ticket_number: str,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     ticket=(
         db.query(Ticket)
@@ -485,9 +508,10 @@ def troubleshoot(
         )
 
     except Exception as e:
+        logger.exception("Troubleshooting failed")
         raise HTTPException(
             status_code=500,
-            detail=f"Troubleshooting failed: {str(e)}"
+            detail="Troubleshooting failed. Please try again later."
         )
     
     return{
@@ -500,5 +524,6 @@ def troubleshoot(
 def load_rag_models():
     print("Loading RAG resources....")
     _build_vector_store()
+    _get_reranker()
     _get_llm()
     print("RAG resources loaded.")

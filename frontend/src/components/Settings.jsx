@@ -1,7 +1,7 @@
 import { Settings as SettingsIcon, Moon, Sun, Server, RefreshCw, ArrowLeft, ChevronRight } from "lucide-react";
 import React, {useState} from "react";
 
-function Settings({ darkMode, onToggleTheme, refreshInterval, onRefreshIntervalChange, backendOnline, sidebarCollapsed, onToggleSidebarCollapsed, lastDataUpdate, refreshEnabled, onToggleRefresh }) {
+function Settings({ darkMode, onToggleTheme, refreshInterval, onRefreshIntervalChange, backendOnline, sidebarCollapsed, onToggleSidebarCollapsed, lastDataUpdate, refreshEnabled, onToggleRefresh, backendInfo }) {
     const [activeSection, setActiveSection] = useState(null);
     return (
         <div className="settings-page">
@@ -459,7 +459,7 @@ function Settings({ darkMode, onToggleTheme, refreshInterval, onRefreshIntervalC
                             </div>
 
                             <span className="settings-value">
-                                FastAPI . Port 8001
+                                {backendInfo}
                             </span>
                         </div>
 

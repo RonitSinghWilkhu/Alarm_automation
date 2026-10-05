@@ -5,10 +5,14 @@ export default defineConfig({
   plugins: [react()],
   server: {
     proxy: {
-      // Forward these API routes to your backend
-      '/tickets': 'http://127.0.0.1:8001',
-      '/notifications': 'http://127.0.0.1:8001',
-      '/troubleshoot': 'http://127.0.0.1:8001'
+      // Forward all API routes to the FastAPI backend so the browser
+      // only ever talks to a single origin (localhost:5173).
+      // This keeps the alarmops_session cookie on one origin and
+      // satisfies SameSite=Lax without any CORS/cookie-origin split.
+      '/auth': 'http://localhost:8001',
+      '/tickets': 'http://localhost:8001',
+      '/notifications': 'http://localhost:8001',
+      '/troubleshoot': 'http://localhost:8001'
     }
   }
 })

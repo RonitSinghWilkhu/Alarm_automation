@@ -9,8 +9,28 @@ const PAGE_HEADINGS = {
     settings: { title: "Settings", subtitle: "Manage your AlarmOps dashboard preferences" },
 };
 
-function Topbar({ searchTerm, onSearchChange, darkMode, onToggleTheme, onRefresh, onLogout, activePage }) {
+function Topbar({
+     searchTerm, 
+     onSearchChange, 
+     darkMode, 
+     onToggleTheme, 
+     onRefresh,
+     onLogout, 
+     activePage,
+     user 
+    }) {
+
     const [userMenuOpen, setUserMenuOpen] = useState(false);
+
+    const userName = user?.fullName || user?.username || "User";
+
+    const userInitials = userName
+        .split(" ")
+        .filter(Boolean)
+        .map(name => name[0])
+        .join("")
+        .slice(0,2)
+        .toUpperCase();
     const userMenuRef = useRef(null);
     const pageTitles = {
         dashboard: {
@@ -97,10 +117,10 @@ function Topbar({ searchTerm, onSearchChange, darkMode, onToggleTheme, onRefresh
                     aria-label="Open user menu" 
                     aria-expanded={userMenuOpen}
                 >
-                    <div className="avatar">UR</div>
+                    <div className="avatar">{userInitials}</div>
                     <div className="user-meta">
-                        <span className="user-name">Ericsson User</span>
-                        <span className="user-role">User role</span>
+                        <span className="user-name">{userName}</span>
+                        <span className="user-role">User</span>
                     </div>
                     {/* The CSS automatically rotates this when parent has .open class */}
                     <ChevronDown size={16} className="user-chevron" />
@@ -111,10 +131,10 @@ function Topbar({ searchTerm, onSearchChange, darkMode, onToggleTheme, onRefresh
                     id="userDropdown"
                 >
                     <div className="dropdown-user-info">
-                        <div className="dropdown-avatar">UR</div>
+                        <div className="dropdown-avatar">{userInitials}</div>
                         <div>
-                            <strong>Ericsson User</strong>
-                            <span>User role</span>
+                            <strong>{userName}</strong>
+                            <span>{user?.email || "User"}</span>
                         </div>
                     </div>
                     <div className="dropdown-divider"></div>

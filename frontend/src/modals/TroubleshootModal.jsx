@@ -1,103 +1,152 @@
 import { X, Brain, Ticket, Server, AlertTriangle } from "lucide-react";
+import { useModalA11y } from "../hooks/useModalA11y";
+
+function renderInline(text, keyPrefix) {
+    // Renders inline `code` spans as <code>, leaving other text as-is.
+    const parts = text.split(/(`[^`]+`)/g);
+
+    return parts.map((part, i) => {
+        if (part.startsWith("`") && part.endsWith("`") && part.length >= 2) {
+            return (
+                <code key={`${keyPrefix}-code-${i}`} className="recommendation-code">
+                    {part.slice(1, -1)}
+                </code>
+            );
+        }
+        return part;
+    });
+}
 
 function formatRecommendation(text) {
     if (!text) return null;
 
-    const sections = text
-        .replace(/\r\n/g, "\n")
-        .split(/(?=\*\*\d+\.\s)/);
+    const normalized = text.replace(/\r\n/g, "\n");
 
-    return sections.map((section, index) => {
-        const headingMatch = section.match(
-            /^\*\*(\d+)\.\s*(.*?)\*\*/
-        );
+    // Split off fenced code blocks (```...```) first so their contents are
+    // rendered verbatim and not treated as headings/bullets.
+    const blocks = normalized.split(/(```[\s\S]*?```)/g);
 
-        if (!headingMatch) {
+    return blocks.flatMap((block, blockIndex) => {
+        const fenceMatch = block.match(/^```[^\n]*\n?([\s\S]*?)```$/);
+
+        if (fenceMatch) {
             return (
-                <p key={index}>
-                    {section.trim()}
-                </p>
+                <pre key={`fence-${blockIndex}`} className="recommendation-code-block">
+                    <code>{fenceMatch[1].replace(/\n$/, "")}</code>
+                </pre>
             );
         }
 
-        const number = headingMatch[1];
-        const title = headingMatch[2];
+        if (block.trim() === "") {
+            return [];
+        }
 
-        const content = section
-            .substring(headingMatch[0].length)
-            .trim();
+        // Split a text block into sections at numbered headings like "**1. Title**"
+        // or "1. Title". Leading whitespace is tolerated.
+        const sections = block.split(/(?=^\s*(?:\*\*)?\d+\.\s)/m);
 
-        const lines = content
-            .split("\n")
-            .map(line => line.trim())
-            .filter(Boolean);
+        return sections.map((section, index) => {
+            const key = `${blockIndex}-${index}`;
 
-        return (
-            <div
-                key={index}
-                className="recommendation-section"
-            >
-                <h3 className="recommendation-heading">
-                    {number}. {title}
-                </h3>
+            // Flexible heading match: optional "**", a number, ". ", a title,
+            // and an optional closing "**".
+            const headingMatch = section.match(
+                /^\s*(?:\*\*)?(\d+)\.\s*(.*?)(?:\*\*)?\s*(?:\n|$)/
+            );
 
-                {lines.map((line, lineIndex) => {
-                    if (line.startsWith("- ")) {
-                        return (
-                            <div
-                                key={lineIndex}
-                                className="recommendation-bullet"
-                            >
-                                <span>•</span>
+            if (!headingMatch || headingMatch[2].trim() === "") {
+                const trimmed = section.trim();
+                if (trimmed === "") return null;
+                return (
+                    <p key={key}>
+                        {renderInline(trimmed, key)}
+                    </p>
+                );
+            }
 
-                                <span>
-                                    {line.substring(2)}
-                                </span>
-                            </div>
+            const number = headingMatch[1];
+            const title = headingMatch[2].replace(/\*\*/g, "").trim();
+
+            const content = section
+                .substring(headingMatch[0].length)
+                .trim();
+
+            const lines = content
+                .split("\n")
+                .map(line => line.trim())
+                .filter(Boolean);
+
+            return (
+                <div
+                    key={key}
+                    className="recommendation-section"
+                >
+                    <h3 className="recommendation-heading">
+                        {number}. {title}
+                    </h3>
+
+                    {lines.map((line, lineIndex) => {
+                        const lineKey = `${key}-${lineIndex}`;
+
+                        if (line.startsWith("- ")) {
+                            return (
+                                <div
+                                    key={lineKey}
+                                    className="recommendation-bullet"
+                                >
+                                    <span>•</span>
+
+                                    <span>
+                                        {renderInline(line.substring(2), lineKey)}
+                                    </span>
+                                </div>
+                            );
+                        }
+
+                        const stepMatch = line.match(
+                            /^\*\*(\d+)\.\*\*\s*(.*)$/
                         );
-                    }
 
-                    const stepMatch = line.match(
-                        /^\*\*(\d+)\.\*\*\s*(.*)$/
-                    );
+                        if (stepMatch) {
+                            return (
+                                <div
+                                    key={lineKey}
+                                    className="recommendation-step"
+                                >
+                                    <span className="step-number">
+                                        {stepMatch[1]}.
+                                    </span>
 
-                    if (stepMatch) {
+                                    <span>
+                                        {renderInline(stepMatch[2], lineKey)}
+                                    </span>
+                                </div>
+                            );
+                        }
+
                         return (
-                            <div
-                                key={lineIndex}
-                                className="recommendation-step"
+                            <p
+                                key={lineKey}
+                                className="recommendation-text"
                             >
-                                <span className="step-number">
-                                    {stepMatch[1]}.
-                                </span>
-
-                                <span>
-                                    {stepMatch[2]}
-                                </span>
-                            </div>
+                                {renderInline(line, lineKey)}
+                            </p>
                         );
-                    }
-
-                    return (
-                        <p
-                            key={lineIndex}
-                            className="recommendation-text"
-                        >
-                            {line}
-                        </p>
-                    );
-                })}
-            </div>
-        );
+                    })}
+                </div>
+            );
+        });
     });
 }
 
 function TroubleshootModal({ ticket, recommendation, historicalIncidents, onClose }) {
+    const modalRef = useModalA11y(onClose);
+
     if (!ticket) return null;
 
     return (
         <div className="modal-overlay">
-            <div className="modal" id="troubleshootModal">
+            <div className="modal" id="troubleshootModal" role="dialog" aria-modal="true" tabIndex={-1} ref={modalRef}>
                 <div className="modal-header">
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                         <Brain size={18} style={{ color: '#a855f7' }} />

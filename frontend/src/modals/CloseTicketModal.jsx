@@ -1,11 +1,14 @@
 import { X } from "lucide-react";
+import { useModalA11y } from "../hooks/useModalA11y";
 
 function CloseTicketModal({ ticket, onClose, onConfirm }) {
+    const modalRef = useModalA11y(onClose);
+
     if (!ticket) return null;
 
     return (
         <div className="modal-overlay">
-            <div className="modal small-modal">
+            <div className="modal small-modal" role="dialog" aria-modal="true" tabIndex={-1} ref={modalRef}>
                 <div className="modal-header">
                     <h2>Close Ticket</h2>
                     <button className="modal-close" type="button" onClick={onClose} aria-label="Close modal">

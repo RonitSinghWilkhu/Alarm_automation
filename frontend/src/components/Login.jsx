@@ -1,35 +1,48 @@
 import { useState } from "react";
 import { LockKeyhole, User, Eye, EyeOff } from "lucide-react";
 import ericssonLogo from "../assets/ericsson-logo.png";
+import { loginRequest } from "../api/api";
 
-function Login({ onLogin}) {
+function Login({ onLogin, onNavigate }) {
 
     const [username, setUsername] = useState("");
     const [password, setPassword] = useState("");
     const [showPassword, setShowPassword] = useState(false);
     const [error, setError] = useState("");
     const [loginSuccess, setLoginSuccess] = useState(false);
+    const [isLoading, setIsLoading] = useState(false);
 
-    const handleSubmit = (event) => {
-
+    const handleSubmit = async (event) => {
         event.preventDefault();
 
-        if (!username.trim()) {
-            setError("Please enter your username or email.");
+        if(!username.trim()) {
+            setError("Please enter your username or email");
             return;
         }
 
-        if (!password.trim()) {
-            setError("Please enter your password.");
+        if(!password.trim()) {
+            setError("Please enter your password");
             return;
         }
 
         setError("");
-        setLoginSuccess(true);
+        setIsLoading(true);
 
-        setTimeout(() => {
+        try {
+            await loginRequest(username.trim(), password);
+
+            setLoginSuccess(true);
+            setIsLoading(false);
+
             onLogin();
-        }, 1100);  
+        } catch(error) {
+            console.error("Login failed:", error);
+            setError(
+                error.message ||
+                "Could not connect to the authentication server."
+            );
+            setIsLoading(false);
+        }
     };
 
     return (
@@ -196,9 +209,28 @@ function Login({ onLogin}) {
                                 <button
                                     type="submit"
                                     className="login-button"
+                                    disabled={isLoading}
                                 >
-                                    Login
+                                    {isLoading ? "Signing in..." : "Login"}
                                 </button>
+
+                                <div className="login-auth-links">
+                                    <button
+                                        type="button"
+                                        className="login-link"
+                                        onClick={() => onNavigate("forgot-password")}
+                                    >
+                                        Forgot Password?
+                                    </button>
+
+                                    <button
+                                        type="button"
+                                        className="login-link"
+                                        onClick={() => onNavigate("register")}
+                                    >
+                                        Create New Account
+                                    </button>
+                                </div>
 
                             </form>
 

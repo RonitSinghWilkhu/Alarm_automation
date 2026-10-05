@@ -1,6 +1,7 @@
 import { Bell, Search, X, Ticket } from "lucide-react";
 import { useState, useEffect } from "react";
 import { getTicketSlaStatus , getTicketActivityTime } from "../utils/priorityHistory";
+import { useModalA11y } from "../hooks/useModalA11y";
 
 function formatTimestamp(ts){
     if (!ts) {
@@ -94,6 +95,12 @@ function Notifications({ notifications, tickets, onAcknowledge }) {
         setCurrentPage(1);
     }, [searchTerm, statusFilter, slaFilter]);
 
+    useEffect(() => {
+        if (currentPage > totalPages) {
+            setCurrentPage(totalPages > 0 ? totalPages : 1);
+        }
+    }, [currentPage, totalPages]);
+
     const activeGroup = groupedList.find(g => g.ticketNumber === modalTicketNumber);
 
     return (
@@ -146,10 +153,20 @@ function Notifications({ notifications, tickets, onAcknowledge }) {
                             <div 
                                 className="notification-item" 
                                 key={group.ticketNumber}
+                                role="button"
+                                tabIndex={0}
                                 onClick={() => setModalTicketNumber(group.ticketNumber)}
+                                onKeyDown={(e) => {
+                                    if (e.key === "Enter" || e.key === " ") {
+                                        e.preventDefault();
+                                        setModalTicketNumber(group.ticketNumber);
+                                    }
+                                }}
                                 style={{ cursor: 'pointer', transition: 'background 0.2s' }}
-                                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f8fafc'}
+                                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--surface-2)'}
                                 onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                                onFocus={(e) => e.currentTarget.style.backgroundColor = 'var(--surface-2)'}
+                                onBlur={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                             >
                                 <div className="notif-icon"><Ticket size={16} /></div>
                                 <div className="notification-ticket" style={{ fontWeight: 'bold', color: '#2563eb' }}>{group.ticketNumber}</div>
@@ -183,13 +200,27 @@ function Notifications({ notifications, tickets, onAcknowledge }) {
             )}
 
             {modalTicketNumber && activeGroup && (
-                <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '20px' }} onClick={() => setModalTicketNumber(null)}>
-                    <div style={{ backgroundColor: 'white', borderRadius: '8px', width: '100%', maxWidth: '600px', maxHeight: '80vh', display: 'flex', flexDirection: 'column', boxShadow: '0 10px 25px rgba(0,0,0,0.1)' }} onClick={(e) => e.stopPropagation()}>
+                <NotificationHistoryModal
+                    activeGroup={activeGroup}
+                    onAcknowledge={onAcknowledge}
+                    onClose={() => setModalTicketNumber(null)}
+                />
+            )}
+        </div>
+    );
+}
+
+function NotificationHistoryModal({ activeGroup, onAcknowledge, onClose }) {
+    const modalRef = useModalA11y(onClose);
+
+    return (
+                <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '20px' }} onClick={onClose}>
+                    <div role="dialog" aria-modal="true" aria-label={`Notification History: ${activeGroup.ticketNumber}`} tabIndex={-1} ref={modalRef} style={{ backgroundColor: 'white', borderRadius: '8px', width: '100%', maxWidth: '600px', maxHeight: '80vh', display: 'flex', flexDirection: 'column', boxShadow: '0 10px 25px rgba(0,0,0,0.1)' }} onClick={(e) => e.stopPropagation()}>
                         <div style={{ padding: '16px 20px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <h3 style={{ margin: 0, fontSize: '1.1rem' }}>Notification History: {activeGroup.ticketNumber}</h3>
                             <div style={{ display: 'flex', gap: '10px' }}>
-                                <button onClick={() => { onAcknowledge(activeGroup.ticketNumber); setModalTicketNumber(null); }} style={{ background: '#2563eb', color: 'white', border: 'none', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 500 }}>Acknowledge</button>
-                                <button onClick={() => setModalTicketNumber(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b' }}><X size={20} /></button>
+                                <button onClick={() => { onAcknowledge(activeGroup.ticketNumber); onClose(); }} style={{ background: '#2563eb', color: 'white', border: 'none', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 500 }}>Acknowledge</button>
+                                <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b' }}><X size={20} /></button>
                             </div>
                         </div>
                         
@@ -260,8 +291,6 @@ function Notifications({ notifications, tickets, onAcknowledge }) {
                         </div>
                     </div>
                 </div>
-            )}
-        </div>
     );
 }
 

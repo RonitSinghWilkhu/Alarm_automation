@@ -188,10 +188,12 @@ def _build_vector_store():
     vectorstore = FAISS.from_documents(children,embeddings)
 
     #return both the vector store and dict of parents
-    return{
+    _vector_store = {
         "vectorstore": vectorstore,
         "parent_store": parent_store
     }
+
+    return _vector_store
 
 def _search_and_fetch_parents(vectorstore, parent_store, query, k, filter_dict , fetch_k=20):
     """Searches for child chunks using MMR for diversity, then fetches the full parent documents."""

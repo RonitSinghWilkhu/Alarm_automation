@@ -32,7 +32,7 @@ function SummaryCards({ tickets, loading }) {
                     <div className="card-icon"><AlertTriangle size={18} /></div>
                 </div>
                 <p className="card-value">{highImpact}</p>
-                <span className="card-foot">Critical severity</span>
+                <span className="card-foot">High impact level</span>
             </div>
             
             <div className={`summary-card accent-slate${skeletonClass}`}>

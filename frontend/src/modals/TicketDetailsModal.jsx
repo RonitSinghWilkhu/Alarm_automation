@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { X, ArrowRight, CheckCircle2, Info, Activity, Gauge } from "lucide-react";
 import { getPriorityUpgrades, PRIORITY_THRESHOLD_MS } from "../utils/priorityHistory";
+import { useModalA11y } from "../hooks/useModalA11y";
 
 function formatTimestamp(ts) {
     if (!ts) return "-";
@@ -43,6 +44,7 @@ function getSlaStatus(isClosed, remainingMs) {
 }
 
 function TicketDetailsModal({ ticket, notifications, onClose }) {
+    const modalRef = useModalA11y(onClose);
     const [now, setNow] = useState(() => Date.now());
     const isClosed = ticket?.status === "CLOSED";
     const hasTimerPriority = !!ticket && ticket.priority !== "P4";
@@ -133,7 +135,7 @@ function TicketDetailsModal({ ticket, notifications, onClose }) {
 
     return (
         <div className="modal-overlay">
-            <div className="modal">
+            <div className="modal" role="dialog" aria-modal="true" tabIndex={-1} ref={modalRef}>
                 <div className="modal-header">
                     <div>
                         <h2>Ticket Details</h2>

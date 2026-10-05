@@ -1,4 +1,5 @@
 import { X, RotateCcw } from "lucide-react";
+import { useModalA11y } from "../hooks/useModalA11y";
 
 
 function ConfirmReopenModal({
@@ -9,6 +10,8 @@ function ConfirmReopenModal({
     onConfirm
 }) {
 
+    const modalRef = useModalA11y(onClose);
+
     if (!ticket) {
         return null;
     }
@@ -17,7 +20,7 @@ function ConfirmReopenModal({
     return (
         <div className="modal-overlay">
 
-            <div className="modal small-modal">
+            <div className="modal small-modal" role="dialog" aria-modal="true" tabIndex={-1} ref={modalRef}>
 
                 <div className="modal-header">
 

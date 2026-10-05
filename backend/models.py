@@ -184,3 +184,208 @@ class TicketEvent(Base):
         "Ticket",
         back_populates="events"
     )
+
+class User(Base):
+    __tablename__ = "users"
+
+    id = Column(
+        Integer,
+        primary_key=True,
+        index=True
+    )
+
+    full_name = Column(
+        String(120),
+        nullable=False
+    )
+
+    username = Column(
+        String(50),
+        unique=True,
+        nullable=False,
+        index=True
+    )
+
+    email = Column(
+        String(255),
+        unique=True,
+        nullable=False,
+        index=True
+    )
+
+    password_hash = Column(
+        String(255),
+        nullable=False
+    )
+
+    is_active = Column(
+        Boolean,
+        nullable=False,
+        default=True
+    )
+
+    created_at = Column(
+        DateTime,
+        nullable=False,
+        default=datetime.now
+    )
+
+    updated_at = Column(
+        DateTime,
+        nullable=False,
+        default=datetime.now,
+        onupdate=datetime.now
+    )
+
+    sessions = relationship(
+        "UserSession",
+        back_populates="user",
+        cascade="all, delete-orphan"
+    )
+
+    password_reset_tokens = relationship(
+        "PasswordResetToken",
+        back_populates="user",
+        cascade="all, delete-orphan"
+    )
+
+class UserSession(Base):
+    __tablename__ = "user_sessions"
+
+    id = Column(
+        Integer,
+        primary_key=True,
+        index=True
+    )
+
+    user_id = Column(
+        Integer,
+        ForeignKey(
+            "users.id",
+            ondelete="CASCADE"
+        ),
+        nullable=False,
+        index=True
+    )
+
+    session_token_hash = Column(
+        String(64),
+        unique=True,
+        nullable=False,
+        index=True
+    )
+
+    created_at = Column(
+        DateTime,
+        nullable=False,
+        default=datetime.now
+    )
+
+    expires_at = Column(
+        DateTime,
+        nullable=False,
+        index=True
+    )
+
+    last_activity = Column(
+        DateTime,
+        nullable=False,
+        default=datetime.now
+    )
+
+    revoked = Column(
+        Boolean,
+        nullable=False,
+        default=False
+    )
+
+    user = relationship(
+        "User",
+        back_populates="sessions"
+    )
+
+class PasswordResetToken(Base):
+    __tablename__ = "password_reset_tokens"
+
+    id = Column(
+        Integer,
+        primary_key=True,
+        index = True
+    )
+
+    user_id = Column(
+        Integer,
+        ForeignKey(
+            "users.id",
+            ondelete="CASCADE"
+        ),
+        nullable=False,
+        index=True
+    )
+
+    token_hash = Column(
+        String(64),
+        unique=True,
+        nullable=False,
+        index=True
+    )
+
+    created_at = Column(
+        DateTime,
+        nullable=False,
+        default=datetime.now
+    )
+
+    expires_at = Column(
+        DateTime,
+        nullable=False,
+        index=True
+    )
+
+    used = Column(
+        Boolean,
+        nullable=False,
+        default=False
+    )
+
+    user = relationship(
+        "User",
+        back_populates="password_reset_tokens"
+    )
+
+class AuthRateLimit(Base):
+
+    __tablename__ = "auth_rate_limits"
+
+    id = Column(
+        Integer,
+        primary_key=True,
+        index=True
+    )
+
+    rate_limit_key = Column(
+        String(255),
+        nullable=False,
+        index=True
+    )
+    action = Column(
+        String(30),
+        nullable=False,
+        index=True
+    )
+
+    attempt_count = Column(
+        Integer,
+        nullable=False,
+        default=0
+    )
+
+    window_started_at = Column(
+        DateTime,
+        nullable=False,
+        default=datetime.now
+    )
+
+    locked_until = Column(
+        DateTime
+    )
