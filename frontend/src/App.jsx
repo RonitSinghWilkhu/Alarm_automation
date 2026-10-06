@@ -509,7 +509,11 @@ function App() {
                 onToggle={() => setSidebarCollapsed(!sidebarCollapsed)} 
                 notificationCount={sidebarNotificationCount} 
                 activePage={activePage}
-                onNavigate={setActivePage}
+                onNavigate={(page) => {
+                    setActivePage(page);
+                    setSidebarCollapsed(true);
+                    localStorage.setItem("alarm-sidebar-collapsed", "true");
+                }}
             />
             
             <div className={`main ${sidebarCollapsed ? "sidebar-collapsed" : ""}`}>

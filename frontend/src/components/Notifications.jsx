@@ -213,13 +213,34 @@ function Notifications({ notifications, tickets, onAcknowledge }) {
 function NotificationHistoryModal({ activeGroup, onAcknowledge, onClose }) {
     const modalRef = useModalA11y(onClose);
 
+    const latestNotification = activeGroup.notifications[0];
+    const isAchnowledged = latestNotification?.status === "ACKNOWLEDGED";
+
     return (
                 <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '20px' }} onClick={onClose}>
                     <div role="dialog" aria-modal="true" aria-label={`Notification History: ${activeGroup.ticketNumber}`} tabIndex={-1} ref={modalRef} style={{ backgroundColor: 'white', borderRadius: '8px', width: '100%', maxWidth: '600px', maxHeight: '80vh', display: 'flex', flexDirection: 'column', boxShadow: '0 10px 25px rgba(0,0,0,0.1)' }} onClick={(e) => e.stopPropagation()}>
                         <div style={{ padding: '16px 20px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <h3 style={{ margin: 0, fontSize: '1.1rem' }}>Notification History: {activeGroup.ticketNumber}</h3>
                             <div style={{ display: 'flex', gap: '10px' }}>
-                                <button onClick={() => { onAcknowledge(activeGroup.ticketNumber); onClose(); }} style={{ background: '#2563eb', color: 'white', border: 'none', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 500 }}>Acknowledge</button>
+                                <button
+                                    onClick={() => {
+                                        onAcknowledge(activeGroup.ticketNumber);
+                                        onClose();
+                                    }}
+                                    disabled = {isAchnowledged}
+                                    style={{
+                                        background: isAchnowledged ? '#e2e8f0' : '#2563eb',
+                                        color: isAchnowledged ? '#64748b' : 'white',
+                                        border: 'none',
+                                        padding: '6px 12px',
+                                        borderRadius: '4px',
+                                        cursor: isAchnowledged ? 'not-allowed' : 'pointer',
+                                        fontSize: '0.85rem',
+                                        fontWeight: 500
+                                    }}
+                                >
+                                    {isAchnowledged ? "Achnowledged" : "Acknowledge"}
+                                </button>
                                 <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b' }}><X size={20} /></button>
                             </div>
                         </div>
