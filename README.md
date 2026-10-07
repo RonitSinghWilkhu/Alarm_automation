@@ -2041,79 +2041,25 @@ Historical Incidents
 Embeddings
         ↓
 FAISS
-        ↓
-MMR Retrieval
-        ↓
-Reranking
-        ↓
-LLM
-```
 
-This reduces the need for the LLM to rely solely on its general knowledge.
+Hugging Face sentence transformers
 
----
+Groq LLM integration
 
-# Security Considerations
+Environment variables
 
-The application includes several security-oriented controls:
+Human-in-the-loop automation
 
-- password hashing
-- hashed session tokens
-- hashed password-reset tokens
-- HttpOnly authentication cookie
-- SameSite cookie configuration
-- session expiration
-- session revocation
-- login rate limiting
-- registration rate limiting
-- password-reset rate limiting
-- generic authentication error messages
-- password reset invalidation of active sessions
+Telecom alarm and incident workflow concepts
 
-Secrets should always be provided through environment variables rather than committed to source control.
+20. Disclaimer
 
----
+This project is a personal/educational prototype.
 
-# Development Notes
-
-The repository contains generated/runtime artifacts such as:
-
-```text
-out/
-node_modules/
-output/
-```
-
-These are generated as part of development/runtime workflows.
-
-The source code of interest is primarily contained in:
-
-```text
-backend/
-frontend/
-src/
-knowledge/
-data/
-```
-
-and the Gson dependency is stored under:
-
-```text
-lib/
-```
-
----
-
-# License
-
-No explicit open-source license is currently specified for this project.
-
----
-
-# Disclaimer
-
-This project is a development/prototype system for telecom alarm automation and AI-assisted troubleshooting.
-
-It should not be treated as a production network-management or autonomous remediation system without appropriate validation, security hardening, operational safeguards, monitoring, testing, and review.
-
-The AI troubleshooting component provides recommendations based on retrieved knowledge and is not intended to automatically execute commands or perform uncontrolled changes to network infrastructure.
+The alarm data, thresholds, team mappings, runbooks, diagnostic
+commands, ticketing workflow, and notification behavior are simulated
+for demonstration purposes. They should not be interpreted as Ericsson
+production architecture, Ericsson internal procedures, or approved
+network operational instructions.#   A l a r m _ a u t o m a t i o n 
+ 
+ 
