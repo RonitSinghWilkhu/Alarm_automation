@@ -1,28 +1,51 @@
 import hashlib
 import os
 import secrets
-from datetime import datetime,timedelta
+from datetime import datetime,timedelta, timezone
+
+import jwt
 from fastapi import Depends,HTTPException,Request
 from pwdlib import PasswordHash
 from sqlalchemy.orm import Session
+
 from backend.database import get_db
 from backend.models import(
     User,
-    UserSession,
     PasswordResetToken,
-    AuthRateLimit
+    AuthRateLimit,
+    RefreshToken
 )
 
 password_hasher = PasswordHash.recommended()
-SESSION_COOKIE_NAME = "alarmops_session"
-SESSION_EXPIRE_HOURS = 8
-SESSION_MAX_AGE = SESSION_EXPIRE_HOURS*60*60
-SESSION_COOKIE_SECURE = (
+JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY")
+JWT_ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
+JWT_ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("JWT_ACCESS_TOKEN_EXPIRE_MINUTES" , "30"))
+
+JWT_REFRESH_TOKEN_EXPIRE_DAYS = int (os.getenv("JWT_REFRESH_TOKEN_EXPIRE_DAYS", "7"))
+
+JWT_ISSUER = os.getenv(
+    "JWT_ISSUER",
+    "alarmops-api"
+)
+
+JWT_AUDIENCE = os.getenv(
+    "JWT_AUDIENCE",
+    "alarmops-client"
+)
+
+ACCESS_TOKEN_COOKIE_NAME = "alarmops_access_token"
+REFRESH_TOKEN_COOKIE_NAME = "alarmops_refresh_token"
+
+AUTH_COOKIE_SECURE = (
     os.getenv(
         "AUTH_COOKIE_SECURE",
         "true"
-    ).lower()=="true"
+    ).lower() == "true"
 )
+
+if not JWT_SECRET_KEY:
+    raise RuntimeError("JWT_SECRET_KEY is not configured.")
+
 RESET_TOKEN_EXPIRE_MINUTES = 30
 
 LOGIN_MAX_ATTEMPTS = 5
@@ -34,8 +57,6 @@ REGISTER_WINDOW_MINUTES = 15
 
 FORGOT_PASSWORD_MAX_ATTEMPTS = 3
 FORGOT_PASSWORD_WINDOW_MINUTES = 15
-
-SESSION_IDLE_TIMEOUT_MINUTES = 60
 
 DUMMY_PASSWORD_HASH = password_hasher.hash(
     "dummy-password-for-timing-protection"
@@ -55,47 +76,191 @@ def verify_password(
         password_hash
     )
 
-def hash_session_token(
-        token: str,
-) -> str:
+def hash_reset_token(token:str) -> str:
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
 
+def hash_refresh_token(token:str) -> str:
     return hashlib.sha256(
         token.encode("utf-8")
     ).hexdigest()
 
-def hash_reset_token(token:str) -> str:
-    return hashlib.sha256(token.encode("utf-8")).hexdigest()
+def store_refresh_token(
+        db:Session,
+        user:User,
+        raw_token:str
+) -> RefreshToken:
+    payload = decode_token(raw_token,"refresh")
+    now= datetime.now(timezone.utc)
 
-def create_session(
-        db: Session,
-        user: User
-) -> str:
+    expires_at = datetime.fromtimestamp(
+        payload["exp"],
+        tz=timezone.utc
+    ).replace(tzinfo=None)
 
-    purge_expired_sessions(db)
-
-    raw_token = secrets.token_urlsafe(32)
-
-    token_hash = hash_session_token(raw_token)
-
-    now = datetime.now()
-
-    session = UserSession(
-        user_id = user.id,
-        session_token_hash = token_hash,
-        created_at = now,
-        expires_at = (
-            now+
-            timedelta(
-                hours=SESSION_EXPIRE_HOURS
-            )
-        ),
-        last_activity = now,
-        revoked = False
+    refresh_record = RefreshToken(
+        user_id=user.id,
+        token_hash= hash_refresh_token(raw_token),
+        created_at=now.replace(tzinfo=None),
+        expires_at = expires_at,
+        revoked=False
     )
 
-    db.add(session)
+    db.add(refresh_record)
     db.commit()
-    return raw_token
+    db.refresh(refresh_record)
+
+    return refresh_record
+
+def validate_refresh_token(
+        db:Session,
+        raw_token: str
+) -> User:
+    payload = decode_token(raw_token,"refresh")
+
+    try:
+        user_id = int(payload["sub"])
+
+    except (TypeError, ValueError):
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid token subject"
+        )
+
+    token_hash = hash_refresh_token(raw_token)
+
+    refresh_record = (
+        db.query(RefreshToken)
+        .filter(
+            RefreshToken.token_hash == token_hash,
+            RefreshToken.user_id == user_id,
+            RefreshToken.revoked.is_(False)
+        )
+        .first()
+    )
+
+    if not refresh_record:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid or revoked refresh token"
+        )
+
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+
+    if refresh_record.expires_at <= now:
+        refresh_record.revoked = True
+        db.commit()
+
+        raise HTTPException(
+            status_code=401,
+            detail="Refresh token expired"
+        )
+
+    user = (
+        db.query(User)
+        .filter(User.id == user_id)
+        .first()
+    )
+
+    if not user or not user.is_active:
+        raise HTTPException(
+            status_code=401,
+            detail="User not found or inactive"
+        )
+
+    return user
+
+def revoke_refresh_token(
+        db:Session,
+        raw_token: str
+) -> None:
+    token_hash = hash_refresh_token(raw_token)
+
+    refresh_record = (
+        db.query(RefreshToken)
+        .filter(RefreshToken.token_hash == token_hash)
+        .first()
+    )
+
+    if refresh_record and not refresh_record.revoked:
+        refresh_record.revoked = True
+        db.commit()
+
+def create_access_token(user: User) -> str:
+    now = datetime.now(timezone.utc)
+
+    payload = {
+        "sub": str(user.id),
+        "type": "access",
+        "iat": now,
+        "exp": now+timedelta(minutes=JWT_ACCESS_TOKEN_EXPIRE_MINUTES),
+        "iss": JWT_ISSUER,
+        "aud": JWT_AUDIENCE,
+        "jti": secrets.token_urlsafe(16)
+    }
+
+    return jwt.encode(
+        payload,
+        JWT_SECRET_KEY,
+        algorithm = JWT_ALGORITHM
+    )
+
+def create_refresh_token(user: User) -> str:
+    now = datetime.now(timezone.utc)
+
+    payload = {
+        "sub": str(user.id),
+        "type": "refresh",
+        "iat": now,
+        "exp": now + timedelta(days = JWT_REFRESH_TOKEN_EXPIRE_DAYS),
+        "iss": JWT_ISSUER,
+        "aud": JWT_AUDIENCE,
+        "jti": secrets.token_urlsafe(16)
+    }
+
+    return jwt.encode(
+        payload,
+        JWT_SECRET_KEY,
+        algorithm = JWT_ALGORITHM
+    )
+
+def decode_token(
+        token: str,
+        expected_type: str
+):
+    try:
+        payload = jwt.decode(
+            token,
+            JWT_SECRET_KEY,
+            algorithms = [JWT_ALGORITHM],
+            issuer = JWT_ISSUER,
+            audience = JWT_AUDIENCE
+        )
+
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(
+            status_code=401,
+            detail="Token Expired"
+        )
+
+    except jwt.InvalidTokenError:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid token"
+        )
+
+    if payload.get("type") != expected_type:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid token type"
+        )
+
+    if not payload.get("sub"):
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid token subject"
+        )
+
+    return payload
 
 def check_rate_limit(
         db: Session,
@@ -261,92 +426,45 @@ def get_current_user(
         db: Session = Depends(get_db)
 ) -> User:
 
-    raw_token = request.cookies.get(
-        SESSION_COOKIE_NAME
+    access_token = request.cookies.get(
+        ACCESS_TOKEN_COOKIE_NAME
     )
 
-    if not raw_token:
-
+    if not access_token:
         raise HTTPException(
             status_code=401,
             detail="Not authenticated"
         )
 
-    token_hash = hash_session_token(raw_token)
+    payload = decode_token(access_token,"access")
 
-    session = (
-        db.query(UserSession)
-        .filter(
-            UserSession.session_token_hash == token_hash,
-            UserSession.revoked == False
+    try:
+        user_id = int(payload["sub"])
+    except (TypeError , ValueError):
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid token subject"
         )
+
+    user = (
+        db.query(User)
+        .filter(User.id == user_id)
         .first()
     )
 
-    if not session:
+    if not user:
         raise HTTPException(
             status_code=401,
-            detail="Invalid sessions"
+            detail="User not found"
         )
 
-    now = datetime.now()
-
-    if session.expires_at <= now:
-        session.revoked=True
-        db.commit()
-
-        raise HTTPException(
-            status_code=401,
-            detail="session expired"
-        )
-
-    if session.last_activity + timedelta(
-        minutes=SESSION_IDLE_TIMEOUT_MINUTES
-    ) <= now:
-        session.revoked = True
-        db.commit()
-
-        raise HTTPException(
-            status_code=401,
-            detail="Session expired due to inactivity."
-        )
-
-    user= session.user
-
-    if not user or not user.is_active:
-
-        session.revoked = True
-        db.commit()
-
+    if not user.is_active:
         raise HTTPException(
             status_code=401,
             detail="User account is inactive"
         )
 
-    session.last_activity = now
-    db.commit()
-
     return user
-
-def revoke_session(
-        db: Session,
-        raw_token: str
-):
-
-    token_hash = hash_session_token(raw_token)
-
-    session = (
-        db.query(UserSession)
-        .filter(
-            UserSession.session_token_hash == token_hash
-        )
-        .first()
-    )
-
-    if session:
-
-        session.revoked = True
-        db.commit()
 
 def create_password_reset_token(
         db: Session,
@@ -370,23 +488,3 @@ def create_password_reset_token(
     db.add(reset_token)
     db.commit()
     return raw_token
-
-def purge_expired_sessions(db: Session):
-    now = datetime.now()
-    idle_cutoff = now - timedelta(
-        minutes=SESSION_IDLE_TIMEOUT_MINUTES
-    )
-
-    db.query(UserSession).filter(
-        (
-            UserSession.expires_at <= now
-        )
-        |
-        (
-            UserSession.last_activity <= idle_cutoff
-        )
-    ).delete(
-        synchronize_session=False
-    )
-
-    db.commit()

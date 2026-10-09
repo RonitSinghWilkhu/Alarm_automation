@@ -9,11 +9,13 @@ from datetime import datetime
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from backend.database import get_db
-from backend.models import User, PasswordResetToken, UserSession
+from backend.models import User, PasswordResetToken, RefreshToken
 from backend.security import(
-    SESSION_COOKIE_NAME,
-    SESSION_MAX_AGE,
-    SESSION_COOKIE_SECURE,
+    ACCESS_TOKEN_COOKIE_NAME,
+    REFRESH_TOKEN_COOKIE_NAME,
+    JWT_ACCESS_TOKEN_EXPIRE_MINUTES,
+    JWT_REFRESH_TOKEN_EXPIRE_DAYS,
+    AUTH_COOKIE_SECURE,
 
     LOGIN_MAX_ATTEMPTS,
     LOGIN_WINDOW_MINUTES,
@@ -27,12 +29,15 @@ from backend.security import(
 
     authenticate_user,
     check_rate_limit,
-    create_session,
+    create_access_token,
+    create_refresh_token,
     record_rate_limit_attempt,
+    store_refresh_token,
+    revoke_refresh_token,
+    validate_refresh_token,
     reset_rate_limit,
     get_current_user,
     hash_password,
-    revoke_session,
     verify_password,
     create_password_reset_token,
     hash_reset_token
@@ -219,23 +224,37 @@ def login(
         "LOGIN"
     )
 
-    session_token = create_session(
+    access_token = create_access_token(user)
+    refresh_token = create_refresh_token(user)
+
+    store_refresh_token(
         db,
-        user
+        user,
+        refresh_token
     )
 
     response.set_cookie(
-        key=SESSION_COOKIE_NAME,
-        value=session_token,
-        max_age=SESSION_MAX_AGE,
+        key= ACCESS_TOKEN_COOKIE_NAME,
+        value=access_token,
+        max_age= JWT_ACCESS_TOKEN_EXPIRE_MINUTES * 60,
         httponly=True,
-        secure=SESSION_COOKIE_SECURE,
+        secure=AUTH_COOKIE_SECURE,
         samesite="lax",
         path="/"
     )
 
+    response.set_cookie(
+        key = REFRESH_TOKEN_COOKIE_NAME,
+        value= refresh_token,
+        max_age = JWT_REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,
+        httponly = True,
+        secure = AUTH_COOKIE_SECURE,
+        samesite = "lax",
+        path="/"
+    )
+
     return {
-        "message": "Login successful",
+        "message" : "Login successful",
         "user": {
             "id": user.id,
             "fullName": user.full_name,
@@ -248,26 +267,74 @@ def login(
 def logout(
     response: Response,
     request: Request,
-    db: Session = Depends(get_db)
+    db:Session = Depends(get_db)
 ):
-
-    raw_token = request.cookies.get(
-        SESSION_COOKIE_NAME
+    raw_refresh_token = request.cookies.get(
+        REFRESH_TOKEN_COOKIE_NAME
     )
 
-    if raw_token:
-        revoke_session(
+    if raw_refresh_token:
+        revoke_refresh_token(
             db,
-            raw_token
+            raw_refresh_token
         )
 
     response.delete_cookie(
-        key=SESSION_COOKIE_NAME,
-        path= "/"
+        key=ACCESS_TOKEN_COOKIE_NAME,
+        path="/",
+        secure=AUTH_COOKIE_SECURE,
+        httponly=True,
+        samesite="lax"
+    )
+
+    response.delete_cookie(
+        key=REFRESH_TOKEN_COOKIE_NAME,
+        path="/",
+        secure=AUTH_COOKIE_SECURE,
+        httponly=True,
+        samesite="lax"
     )
 
     return {
         "message": "Logout successful"
+    }
+
+
+@router.post("/refresh")
+def refresh_access_token(
+    request: Request,
+    response: Response,
+    db: Session = Depends(get_db)
+):
+    raw_refresh_token = request.cookies.get(
+        REFRESH_TOKEN_COOKIE_NAME
+    )
+
+    if not raw_refresh_token:
+        raise HTTPException(
+            status_code=401,
+            detail="Refresh token missing"
+        )
+
+    user = validate_refresh_token(
+        db,
+        raw_refresh_token
+    )
+
+    new_access_token = create_access_token(user)
+
+    response.set_cookie(
+        key=ACCESS_TOKEN_COOKIE_NAME,
+        value=new_access_token,
+        max_age=JWT_ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        httponly=True,
+        secure=AUTH_COOKIE_SECURE,
+        samesite="lax",
+        path="/"
+    )
+
+    return{
+        "message": "Access token refreshed"
     }
 
 @router.get("/me")
@@ -399,12 +466,12 @@ def reset_password(
 
     reset_token.used = True
 
-    db.query(UserSession).filter(
-        UserSession.user_id == user.id,
-        UserSession.revoked == False
+    db.query(RefreshToken).filter(
+        RefreshToken.user_id == user.id,
+        RefreshToken.revoked.is_(False)
     ).update(
         {
-            UserSession.revoked: True
+            RefreshToken.revoked: True
         },
         synchronize_session=False
     )

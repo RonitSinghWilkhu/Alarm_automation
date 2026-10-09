@@ -560,6 +560,7 @@ function App() {
                     {activePage === "settings" && (
                       <Settings
                           darkMode={darkMode}
+                          user={currentUser}
                           onToggleTheme={() => setDarkMode(prev => !prev)}
                           refreshEnabled={refreshEnabled}
                           backendInfo="FastAPI · Port 8001"

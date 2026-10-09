@@ -1,7 +1,7 @@
 import { Settings as SettingsIcon, Moon, Sun, Server, RefreshCw, ArrowLeft, ChevronRight } from "lucide-react";
 import React, {useState} from "react";
 
-function Settings({ darkMode, onToggleTheme, refreshInterval, onRefreshIntervalChange, backendOnline, sidebarCollapsed, onToggleSidebarCollapsed, lastDataUpdate, refreshEnabled, onToggleRefresh, backendInfo }) {
+function Settings({ darkMode,user, onToggleTheme, refreshInterval, onRefreshIntervalChange, backendOnline, sidebarCollapsed, onToggleSidebarCollapsed, lastDataUpdate, refreshEnabled, onToggleRefresh, backendInfo }) {
     const [activeSection, setActiveSection] = useState(null);
     return (
         <div className="settings-page">
@@ -11,7 +11,9 @@ function Settings({ darkMode, onToggleTheme, refreshInterval, onRefreshIntervalC
                     <div className="settings-header">
                         <div>
                             <h2>Settings</h2>
-                            <p>Configure your dashboard, refresh, and appearance preferences.</p>
+                            <p>
+                                Hi {(user?.full_name || user?.name || user?.username || "there").replace(/\b\w/g, (char) => char.toUpperCase())}, this is your settings page. You can configure your dashboard, refresh, and appearance preferences.
+                            </p>
                         </div>
                     </div>
 

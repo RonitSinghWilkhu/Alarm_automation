@@ -237,71 +237,16 @@ class User(Base):
         onupdate=datetime.now
     )
 
-    sessions = relationship(
-        "UserSession",
-        back_populates="user",
-        cascade="all, delete-orphan"
-    )
-
     password_reset_tokens = relationship(
         "PasswordResetToken",
         back_populates="user",
         cascade="all, delete-orphan"
     )
 
-class UserSession(Base):
-    __tablename__ = "user_sessions"
-
-    id = Column(
-        Integer,
-        primary_key=True,
-        index=True
-    )
-
-    user_id = Column(
-        Integer,
-        ForeignKey(
-            "users.id",
-            ondelete="CASCADE"
-        ),
-        nullable=False,
-        index=True
-    )
-
-    session_token_hash = Column(
-        String(64),
-        unique=True,
-        nullable=False,
-        index=True
-    )
-
-    created_at = Column(
-        DateTime,
-        nullable=False,
-        default=datetime.now
-    )
-
-    expires_at = Column(
-        DateTime,
-        nullable=False,
-        index=True
-    )
-
-    last_activity = Column(
-        DateTime,
-        nullable=False,
-        default=datetime.now
-    )
-
-    revoked = Column(
-        Boolean,
-        nullable=False,
-        default=False
-    )
-
-    user = relationship(
-        "User",
-        back_populates="sessions"
+    refresh_tokens = relationship(
+        "RefreshToken",
+        back_populates="user",
+        cascade="all, delete-orphan"
     )
 
 class PasswordResetToken(Base):
@@ -351,6 +296,55 @@ class PasswordResetToken(Base):
     user = relationship(
         "User",
         back_populates="password_reset_tokens"
+    )
+
+class RefreshToken(Base):
+    __tablename__ = "refresh_tokens"
+
+    id= Column(
+        Integer,
+        primary_key=True,
+        index=True
+    )
+
+    user_id = Column(
+        Integer,
+        ForeignKey(
+            "users.id",
+            ondelete="CASCADE"
+        ),
+        nullable=False,
+        index = True
+    )
+
+    token_hash= Column(
+        String(64),
+        unique=True,
+        nullable=False,
+        index=True
+    )
+
+    created_at = Column(
+        DateTime,
+        nullable=False,
+        default=datetime.now
+    )
+
+    expires_at = Column(
+        DateTime,
+        nullable=False,
+        index=True
+    )
+
+    revoked = Column(
+        Boolean,
+        nullable=False,
+        default=False
+    )
+
+    user = relationship(
+        "User",
+        back_populates="refresh_tokens"
     )
 
 class AuthRateLimit(Base):

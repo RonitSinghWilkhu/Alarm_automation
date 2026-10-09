@@ -4,8 +4,8 @@ from backend.models import(
     TicketEvent,
     Team,
     User,
-    UserSession,
     PasswordResetToken,
+    RefreshToken,
     AuthRateLimit
 )
 print("Creating db tables...")

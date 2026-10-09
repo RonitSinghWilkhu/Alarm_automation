@@ -4,6 +4,45 @@
 // This keeps the alarmops_session cookie on one origin.
 const API_BASE = "";
 
+let refreshPromise = null;
+
+async function refreshAccessToken(){
+    if(!refreshPromise){
+        refreshPromise = fetch(`${API_BASE}/auth/refresh`,{
+            method: "POST",
+            credentials: "include"
+        })
+            .then(response => response.ok)
+            .catch(() => false)
+            .finally(() => {
+                refreshPromise = null;
+            });
+    }
+    return refreshPromise;
+}
+
+async function authenticatedFetch(url, options = {}) {
+    const requestOptions = {
+        ...options,
+        credentials: "include"
+    };
+
+    let response = await fetch(url, requestOptions);
+
+    if(response.status !== 401) {
+        return response;
+    }
+
+    const refreshed = await refreshAccessToken();
+
+    if(!refreshed){
+        return response;
+    }
+
+    //retry the original request once with the refreshed access cookie.
+    return fetch(url, requestOptions);
+}
+
 // --- Authentication ---
 
 export async function loginRequest(identifier, password) {
@@ -28,9 +67,7 @@ export async function loginRequest(identifier, password) {
 }
 
 export async function checkAuth() {
-    const response = await fetch(`${API_BASE}/auth/me`, {
-        credentials: "include"
-    });
+    const response = await authenticatedFetch(`${API_BASE}/auth/me`);
     if(!response.ok){
         return null;
     }
@@ -133,39 +170,41 @@ export async function resetPasswordRequest(
 }
 
 export const acknowledgeTicket = async (ticketNumber) => {
-    const response = await fetch(`${API_BASE}/tickets/${ticketNumber}/acknowledge`, {
+    const response = await authenticatedFetch(
+        `${API_BASE}/tickets/${ticketNumber}/acknowledge`,
+        {
         method: "PUT",
-        credentials: "include",
         headers: {
             "Content-Type": "application/json"
         }
     });
     if (!response.ok) {
-        throw new Error("Failed to acknowledge ticket");
+        throw new Error(
+            response.status === 401
+                ? "UNAUTHORIZED"
+                : "Failed to acknowledge ticket"
+        );
     }
+
     return response.json();
 };
 
 export async function fetchTickets() {
-    const response = await fetch(`${API_BASE}/tickets` , {
-        credentials: "include"
-    });
+    const response = await authenticatedFetch(`${API_BASE}/tickets`);
 
-    if (response.status === 401) {
+    if(response.status === 401){
         throw new Error("UNAUTHORIZED");
     }
 
-    if (!response.ok) {
-        throw new Error("Failed to fetch tickets.")
+    if(!response.ok){
+        throw new Error("Failed to fetch tickets.");
     }
 
     return await response.json();
 }
 
 export async function fetchNotifications() {
-    const response = await fetch(`${API_BASE}/notifications` , {
-        credentials: "include"
-    });
+    const response = await authenticatedFetch(`${API_BASE}/notifications`);
 
     if(response.status === 401) {
         throw new Error("UNAUTHORIZED");
@@ -179,13 +218,16 @@ export async function fetchNotifications() {
 }
 
 export async function closeTicket(ticketNumber) {
-    const response = await fetch(`${API_BASE}/tickets/${ticketNumber}/close`, {
+    const response = await authenticatedFetch(`${API_BASE}/tickets/${ticketNumber}/close`, {
         method: "PUT",
-        credentials: "include"
     });
 
     if (!response.ok) {
-        throw new Error("Failed to close ticket");
+        throw new Error(
+            response.status === 401
+                ? "UNAUTHORIZED"
+                : "Failed to close ticket"
+        );
     }
 
     return await response.json();
@@ -197,13 +239,10 @@ export async function reopenTicket(
     reason
 ) {
 
-    const response = await fetch(
+    const response = await authenticatedFetch(
         `${API_BASE}/tickets/${ticketNumber}/reopen`,
         {
             method: "PUT",
-
-            credentials: "include",
-
             headers: {
                 "Content-Type": "application/json"
             },
@@ -214,29 +253,23 @@ export async function reopenTicket(
             })
         }
     );
-
-
-    const data = await response.json();
-
-
+    const data = await response.json().catch(() => ({}));
     if (!response.ok) {
-
         throw new Error(
-            data.detail ||
-            data.message ||
-            "Failed to reopen ticket"
+            response.status===401
+                ? "UNAUTHORIZED"
+                :data.detail ||
+                 data.message ||
+                "Failed to reopen ticket"
         );
 
     }
-
-
     return data;
 }
 
 export async function upgradeTicket(ticketNumber, newPriority) {
-    const response = await fetch(`${API_BASE}/tickets/${ticketNumber}/priority`, {
+    const response = await authenticatedFetch(`${API_BASE}/tickets/${ticketNumber}/priority`, {
         method: "PUT",
-        credentials: "include",
         headers: {
             "Content-Type": "application/json"
         },
@@ -245,13 +278,15 @@ export async function upgradeTicket(ticketNumber, newPriority) {
         })
     });
 
-    const data = await response.json();
+    const data = await response.json().catch(() => ({}));
 
     if (!response.ok) {
         throw new Error(
-            data.detail ||
-            data.message ||
-            "Failed to upgrade ticket"
+            response.status === 401
+            ? "UNAUTHORIZED"
+            :data.detail ||
+             data.message ||
+             "Failed to upgrade ticket"
         );
     }
 
@@ -259,13 +294,13 @@ export async function upgradeTicket(ticketNumber, newPriority) {
 }
 
 export async function troubleshootTicket(ticketNumber) {
-    const response = await fetch(`${API_BASE}/troubleshoot/${ticketNumber}` , {
-        credentials: "include"
-    });
-
-
+    const response = await authenticatedFetch(`${API_BASE}/troubleshoot/${ticketNumber}`);
     if (!response.ok) {
-        throw new Error("Failed to troubleshoot ticket");
+        throw new Error(
+            response.status === 401
+                ? "UNAUTHORIZED"
+                : "Failed to troubleshoot ticket"
+        );
     }
 
     return await response.json();
