@@ -92,8 +92,7 @@ Troubleshooting recommendation
 
 ## 3. Knowledge Sources
 
-The RAG system loads three text files from the project's `knowledge`
-directory.
+The current RAG implementation loads structured knowledge records from PostgreSQL. The earlier text-file ingestion approach is retained below as historical implementation context; it is not the current runtime source.
 
 ### 3.1 Telecom runbooks
 
@@ -158,7 +157,7 @@ troubleshooting rather than as an unconditional resolution.
 
 ## 4. Knowledge Block Creation
 
-The three loaded text documents are split using this delimiter:
+In the earlier file-based implementation, the three loaded text documents were split using this delimiter:
 
 ``` text
 --------------------------------------------------
@@ -347,19 +346,7 @@ Embeddings are normalized before being used by the vector store.
 
 ## 9. FAISS Vector Store
 
-The child documents and their embeddings are indexed using:
-
-``` python
-FAISS.from_documents(children, embeddings)
-```
-
-FAISS is therefore the vector similarity-search component of the current
-implementation.
-
-The vector store is built in memory by `_build_vector_store()`.
-
-There is no code in the current `rag.py` that persists the FAISS index
-to disk and reloads it later.
+FAISS remains the vector similarity-search component. In the latest implementation, the index is persisted and reused rather than being treated only as an in-memory index rebuilt for every call. The precise persistence path and cache/fingerprint behavior should be taken from the current `backend/rag.py` implementation.
 
 ------------------------------------------------------------------------
 
@@ -932,9 +919,9 @@ behavior.
 
 ## 27. RAG Runtime Characteristics
 
-The current implementation has the following characteristics:
+The following table records the settings described by the original file-based implementation. The knowledge source and index-persistence rows have been superseded by the current PostgreSQL-backed implementation.
 
-  Component                          Current implementation
+  Component                          Earlier file-based implementation
   ---------------------------------- ------------------------------------------
   Knowledge format                   Plain text files
   Knowledge sources                  Runbooks, commands, historical incidents
@@ -955,7 +942,7 @@ The current implementation has the following characteristics:
   LLM temperature                    0
   Retrieval filters                  `source_type`, `alarm_type`
   Parent lookup                      In-memory dictionary
-  Persistent vector index            Not implemented
+  Persistent vector index            Implemented in the latest structure; see Section 35
 
 ------------------------------------------------------------------------
 
@@ -1075,17 +1062,11 @@ limitations:
 
 ### In-memory FAISS construction
 
-The FAISS index is created in memory from the knowledge files.
-
-There is no persistent FAISS index loading/saving code in `rag.py`.
+This describes the earlier file-based implementation. The latest implementation persists the FAISS index and uses PostgreSQL-backed knowledge. Refer to Section 35 for the current storage structure.
 
 ### Vector-store singleton mismatch
 
-`_vector_store` is declared as a module-level cache variable, but
-`_build_vector_store()` does not assign the generated
-vector-store/parent-store object to it.
-
-Therefore the intended cache behavior is not fully implemented.
+This limitation describes the earlier implementation captured by this document. The latest implementation includes persistent FAISS index handling and fingerprint/rebuild behavior; the live `backend/rag.py` is authoritative for the current cache behavior.
 
 ### Retrieval query uses only alarm type
 
@@ -1122,8 +1103,7 @@ Therefore parent IDs are not deterministic across separate builds.
 
 ### Knowledge source dependency
 
-The RAG pipeline depends on the three knowledge files being available at
-the configured project paths.
+The earlier file-based pipeline depended on three text files at configured paths. The latest runtime knowledge source is PostgreSQL, populated from legacy knowledge through `migrate_knowledge.py`.
 
 ### External model dependencies
 
@@ -1149,7 +1129,7 @@ CrossEncoder
 Those details do not match the current `backend/rag.py` implementation
 inspected for this documentation.
 
-The current implementation actually uses:
+The retrieval and generation components below remain part of the current implementation. The knowledge source and vector-index persistence details in this older comparison have since been updated:
 
 ``` text
 FAISS
@@ -1286,3 +1266,50 @@ It:
 The RAG layer is therefore a **retrieval-grounded troubleshooting
 assistant** connected to the ticket workflow, while ticket state and
 lifecycle remain controlled by the FastAPI/PostgreSQL application.
+
+
+---
+
+## 35. Latest Knowledge Storage Structure — PostgreSQL
+
+The latest project structure introduces PostgreSQL-backed knowledge records in addition to the ticket and notification data already stored in the database.
+
+### `knowledge_documents`
+
+The `KnowledgeDocument` SQLAlchemy model maps to the `knowledge_documents` table. It stores reusable knowledge items, including the source category, title, alarm type, content, and timestamps.
+
+The source category distinguishes knowledge such as runbooks and diagnostic command references. Alarm type metadata supports alarm-specific retrieval.
+
+### `historical_incidents`
+
+The `HistoricalIncident` model maps to the `historical_incidents` table. It stores historical incident and resolution details, including:
+
+- `ticket_id` — optional link to a ticket.
+- `alarm_type`
+- `observed_symptoms`
+- `root_cause`
+- `actions_taken`
+- `shell_commands_used`
+- `shell_script_used`
+- `resolution`
+- `verification_results`
+- `escalation`
+- `additional_notes`
+- `source` and timestamps.
+
+The `ticket_id` foreign key references `tickets.id` and is nullable. The model allows a historical incident to exist without a linked ticket.
+
+### Knowledge migration
+
+The project includes `migrate_knowledge.py` to move the legacy runbook, command-reference, and historical-incident content into PostgreSQL. The previously migrated dataset contained six runbooks, six command references, and six historical incidents. The legacy text files therefore describe the original knowledge format and migration input, rather than being the only current source.
+
+### Current RAG responsibilities
+
+The RAG layer remains responsible for retrieving relevant knowledge, reranking results, assembling context, and generating operator-oriented troubleshooting guidance. Ticket lifecycle operations remain in the deterministic FastAPI/database layer.
+
+The persistent FAISS index is used to avoid rebuilding the vector index unnecessarily. The index must remain consistent with the PostgreSQL knowledge content; when knowledge changes, the implementation's fingerprint/rebuild logic determines whether the index needs refreshing.
+
+### Resolution questionnaire status
+
+The frontend close-ticket modal has been extended with optional resolution fields. The intended workflow is to submit these fields during ticket closure and store a submitted resolution as a historical incident linked to the ticket. Skipping the questionnaire should preserve normal ticket closure without creating an empty historical record. Treat this persistence path as complete only when the frontend API wrapper and FastAPI close-ticket endpoint both accept and save the optional payload.
+

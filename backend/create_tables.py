@@ -6,7 +6,9 @@ from backend.models import(
     User,
     PasswordResetToken,
     RefreshToken,
-    AuthRateLimit
+    AuthRateLimit,
+    KnowledgeDocument,
+    HistoricalIncident
 )
 print("Creating db tables...")
 

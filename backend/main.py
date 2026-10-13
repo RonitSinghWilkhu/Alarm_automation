@@ -1,11 +1,11 @@
 from fastapi import FastAPI , HTTPException, Depends 
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from backend.rag import troubleshoot_alarm, _build_vector_store , _get_llm, _get_reranker
+from backend.rag import troubleshoot_alarm, _build_vector_store , _get_llm, _get_reranker, refresh_vector_store
 from datetime import datetime
 from sqlalchemy.orm import Session
 from backend.database import get_db
-from backend.models import Ticket , TicketEvent, User
+from backend.models import Ticket , TicketEvent, User , HistoricalIncident
 from backend.auth import router as auth_router
 from backend.security import get_current_user
 import logging
@@ -41,6 +41,17 @@ class PriorityUpdate(BaseModel):
 class ReopenUpdate(BaseModel):
     priority: str
     reason: str
+
+class ResolutionDetails(BaseModel):
+    observedSymptoms: str | None = None
+    rootCause: str | None = None
+    actionsTaken: str | None = None
+    shellCommandsUsed: str | None = None
+    shellScriptUsed: str | None = None
+    resolution: str | None = None
+    verificationResults: str | None = None
+    escalation: str | None = None
+    additionalNotes: str | None = None
 
 @app.get("/")
 def home():
@@ -208,6 +219,7 @@ def update_priority(
 @app.put("/tickets/{ticket_number}/close")
 def close_ticket(
     ticket_number: str,
+    resolution_data: ResolutionDetails | None=None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -232,26 +244,74 @@ def close_ticket(
 
     closed_at = datetime.now()
 
-    ticket.status="CLOSED"
-    ticket.closed_at=closed_at
+    try:
+        if resolution_data is not None:
+            incident = HistoricalIncident(
+                ticket_id = ticket.id,
+                alarm_type = ticket.alarm_type,
+                observed_symptoms = resolution_data.observedSymptoms,
+                root_cause=resolution_data.rootCause,
+                actions_taken=resolution_data.actionsTaken,
+                shell_commands_used=resolution_data.shellCommandsUsed,
+                shell_script_used = resolution_data.shellScriptUsed,
+                resolution=resolution_data.resolution,
+                verification_results = resolution_data.verificationResults,
+                escalation=resolution_data.escalation,
+                additional_notes=resolution_data.additionalNotes,
+                source="questionnaire"
+            )
+            db.add(incident)
 
-    event = TicketEvent(
-        ticket_id=ticket.id,
-        event_type = "TICKET_CLOSED",
-        priority=ticket.priority,
-        status="RESOLVED",
-        timestamp=closed_at
-    )
+        ticket.status="CLOSED"
+        ticket.closed_at=closed_at
 
-    db.add(event)
-    db.commit()
+        event = TicketEvent(
+            ticket_id=ticket.id,
+            event_type = "TICKET_CLOSED",
+            priority=ticket.priority,
+            status="RESOLVED",
+            timestamp=closed_at
+        )
+
+        db.add(event)
+        db.commit()
+
+        if resolution_data is not None:
+            try:
+                refresh_vector_store()
+            except Exception:
+                logger.exception(
+                    "Ticket closed and resolution saved, but RAG refresh failed."
+                )
+
+        refreshed_store = refresh_vector_store()
+
+        logger.info(
+            "RAG refresh completed. Indexed historical incidents: %s",
+            sum(
+                1
+                for document in refreshed_store["parent_store"].values()
+                if document.metadata.get("source_type") == "historical"
+            )
+        )
+
+    except Exception:
+        db.rollback()
+        logger.exception("Failed to close ticket")
+        raise HTTPException(
+            status_code=500,
+            detail="Could not close ticket. No changes were saved."
+        )
 
     return{
         "message": "Ticket closed successfully",
         "ticketNumber": ticket_number,
         "status": "CLOSED",
-        "closedAt": closed_at.isoformat(timespec="seconds")
+        "closedAt": closed_at.isoformat(timespec="seconds"),
+        "resolutionSaved": resolution_data is not None
     }
+
+
 
 @app.put("/tickets/{ticket_number}/reopen")
 def reopen_ticket(

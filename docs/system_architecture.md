@@ -1167,3 +1167,25 @@ The architecture description intentionally focuses on behavior supported
 by the implementation. Detailed database schema, complete API contracts,
 complete code flow, and detailed RAG internals are covered by their
 respective documentation files.
+
+---
+
+## 23. Latest Structure Addendum — PostgreSQL Knowledge and Resolution Capture
+
+This addendum supplements the architecture described above without removing the existing Java-to-JSON-to-PostgreSQL ticket migration flow.
+
+### Knowledge persistence
+
+The SQLAlchemy models now include `KnowledgeDocument` (`knowledge_documents`) and `HistoricalIncident` (`historical_incidents`). The knowledge migration utility `migrate_knowledge.py` imports the legacy runbook, command-reference, and historical-incident content into PostgreSQL. The latest RAG design reads knowledge from PostgreSQL and maintains a persistent FAISS index, using the current implementation's fingerprint/rebuild behavior to determine when the index needs refreshing.
+
+### Historical incident lifecycle
+
+`HistoricalIncident` stores alarm-specific incident learnings, including observed symptoms, root cause, actions taken, shell commands/scripts, resolution, verification results, escalation, additional notes, source, and timestamps. Its optional `ticket_id` references `tickets.id`.
+
+### Optional closure questionnaire
+
+The React close-ticket modal supports two paths: close normally without resolution details, or submit optional resolution details along with closure. The intended backend behavior is to create a historical incident only when details are submitted, associate it with the ticket, and derive the alarm type from the database ticket record. Do not treat this end-to-end persistence behavior as confirmed until the frontend API wrapper and FastAPI endpoint are wired to accept and save the optional payload.
+
+### Architecture boundary
+
+Ticket status and ticket events remain owned by the deterministic backend. RAG uses stored knowledge to assist troubleshooting; it does not independently close tickets or execute shell commands.

@@ -1490,3 +1490,21 @@ The API layer follows this structure:
 
 The API therefore acts as the boundary between the React UI and the
 backend's persistent/application logic.
+
+---
+
+## 27. Latest Structure Addendum — Knowledge Data and Optional Closure Details
+
+The existing endpoint descriptions above document the API contract present when that version of the documentation was written. This addendum records the latest schema/workflow changes and distinguishes them from API behavior that still requires endpoint verification.
+
+### Knowledge-related database models
+
+- `KnowledgeDocument` maps to `knowledge_documents` and stores source type, title, alarm type, content, and timestamps.
+- `HistoricalIncident` maps to `historical_incidents` and stores incident symptoms, root cause, actions, commands/scripts, resolution, verification, escalation, additional notes, optional ticket linkage, source, and timestamps.
+- `migrate_knowledge.py` imports legacy runbooks, command references, and historical incidents into PostgreSQL.
+
+### Close-ticket questionnaire
+
+The frontend modal provides optional resolution details during ticket closure. The no-questionnaire path should continue to call the existing close-ticket operation without a resolution record. The questionnaire path is intended to submit the fields and persist a `HistoricalIncident` linked to the ticket.
+
+**API contract verification note:** Do not assume `PUT /tickets/{ticket_number}/close` accepts a JSON body until the current FastAPI route and frontend `closeTicket` wrapper confirm it. If the endpoint has not yet been updated, the documented existing close operation remains the only confirmed contract; the questionnaire persistence path is pending integration.

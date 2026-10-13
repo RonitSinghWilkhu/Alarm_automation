@@ -338,11 +338,12 @@ function App() {
         }
     };
 
-    const confirmClose = async () => {
+    const confirmClose = async (resolutionData = null) => {
         if (!selectedTicket) return;
         try {
-          const data = await closeTicketAPI(
-            selectedTicket.ticketNumber
+          await closeTicketAPI(
+            selectedTicket.ticketNumber,
+            resolutionData
           );
 
             setTickets(prev => prev.map(t => t.ticketNumber === selectedTicket.ticketNumber ? { ...t, status: "CLOSED" } : t));
@@ -350,7 +351,8 @@ function App() {
             fetchNotifications();
             addToast("success", "Ticket Closed", `${selectedTicket.ticketNumber} has been closed successfully.`);
         } catch (error) {
-            setMessageData({ title: "Connection Error", message: "Could not connect to the backend API." });
+            console.error("Error closing ticket:" , error)
+            setMessageData({ title: "Ticket Closure Failed", message: error.message || "Could not close the ticket" });
             setActiveModal("message");
         }
     };

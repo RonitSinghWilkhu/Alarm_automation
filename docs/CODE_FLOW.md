@@ -1510,3 +1510,31 @@ The complete current implementation can be summarized as:
 
 This represents the current code flow supported by the inspected project
 files.
+
+---
+
+## 28. Latest Structure Addendum — PostgreSQL Knowledge and Resolution Capture
+
+The existing flow sections remain applicable to ticket generation, JSON migration, authentication, notifications, and normal ticket lifecycle operations. The following additional data flow describes the latest knowledge architecture.
+
+### Knowledge ingestion and RAG
+
+1. `migrate_knowledge.py` migrates legacy runbook, command-reference, and historical-incident content into PostgreSQL.
+2. `KnowledgeDocument` records are stored in `knowledge_documents`.
+3. Historical operational learnings are stored in `historical_incidents`.
+4. `backend/rag.py` uses the PostgreSQL-backed knowledge and a persistent FAISS index for retrieval.
+5. Retrieved content is reranked and assembled into context for the Groq-hosted LLM.
+6. The recommendation is returned to the frontend through the troubleshooting endpoint.
+
+The project had migrated six runbooks, six command references, and six historical incidents in the migration run documented in project context.
+
+### Optional resolution capture on closure
+
+1. An operator opens the close-ticket modal.
+2. The operator either skips resolution details or opens the optional questionnaire.
+3. Skipping should preserve the existing close-ticket flow and should not create an empty historical incident.
+4. Submitting details should send the questionnaire payload through the frontend API wrapper.
+5. The backend should close the ticket and persist a `HistoricalIncident` linked by the ticket's database ID, using the ticket's stored alarm type.
+6. The resulting historical record becomes available to future RAG retrieval after the index refresh/rebuild mechanism recognizes the changed knowledge.
+
+Steps 4–6 describe the intended integrated behavior; they are only fully implemented once the API wrapper and FastAPI close endpoint accept and persist the payload.

@@ -383,3 +383,61 @@ class AuthRateLimit(Base):
     locked_until = Column(
         DateTime
     )
+
+class KnowledgeDocument(Base):
+    __tablename__ = "knowledge_documents"
+
+    id= Column(Integer, primary_key=True, index=True)
+    source_type = Column(String(30), nullable=False, index=True)
+    title= Column(String(255), nullable=False)
+    alarm_type = Column(String(100), nullable=False, index=True)
+    content= Column(Text, nullable=False)
+
+    created_at = Column(
+        DateTime,
+        nullable=False,
+        default=datetime.now
+    )
+
+    updated_at = Column(
+        DateTime,
+        nullable=False,
+        default=datetime.now,
+        onupdate=datetime.now
+    )
+
+class HistoricalIncident(Base):
+    __tablename__ = "historical_incidents"
+
+    id= Column(Integer, primary_key=True, index=True)
+    ticket_id = Column(
+        Integer,
+        ForeignKey("tickets.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True
+    )
+
+    alarm_type = Column(String(100), nullable=False, index=True)
+    observed_symptoms = Column(Text, nullable=True)
+    root_cause = Column(Text,nullable=True)
+    actions_taken = Column(Text,nullable=True)
+    shell_commands_used = Column(Text,nullable=True)
+    shell_script_used = Column(Text,nullable=True)
+    resolution = Column(Text,nullable=True)
+    verification_results = Column(Text,nullable=True)
+    escalation = Column(Text,nullable=True)
+    additional_notes = Column(Text,nullable=True)
+
+    source = Column(
+        String(30), nullable=False, default="migration"
+    )
+
+    created_at = Column(
+        DateTime, nullable=False, default=datetime.now
+    )
+    updated_at = Column(
+        DateTime,
+        nullable=False,
+        default=datetime.now,
+        onupdate=datetime.now
+    )

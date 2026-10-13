@@ -1944,3 +1944,36 @@ React state update
     ↓
 Updated UI
 ```
+
+---
+
+## 53. Latest Structure Addendum — Resolution Questionnaire
+
+The existing frontend architecture and ticket operations remain in place. The close-ticket modal has been extended to support optional resolution capture.
+
+### Questionnaire fields
+
+The modal captures the following optional values:
+
+- Observed symptoms
+- Root cause
+- Actions taken
+- Shell commands used
+- Shell script used
+- Resolution
+- Verification results
+- Escalation
+- Additional notes
+
+### Interaction paths
+
+- **Skip & Close Ticket:** calls the existing close handler without questionnaire data.
+- **Save Details & Close Ticket:** passes the collected resolution object to the close handler.
+
+`App.jsx` must forward that optional object to `closeTicketAPI`. The API wrapper and FastAPI close route must also support the request body before the fields can be stored in PostgreSQL.
+
+### Expected persistence behavior
+
+When the backend integration is complete, submitted details should be saved as a `HistoricalIncident` linked to the ticket and associated with the ticket's database-stored alarm type. Skipping should still close the ticket normally and should not create an empty historical record.
+
+The modal alone does not guarantee database persistence. Until the API wrapper and backend endpoint are updated and verified, describe the questionnaire as a frontend capability with persistence integration pending.

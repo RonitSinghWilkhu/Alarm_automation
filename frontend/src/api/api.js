@@ -217,20 +217,34 @@ export async function fetchNotifications() {
     return await response.json();
 }
 
-export async function closeTicket(ticketNumber) {
-    const response = await authenticatedFetch(`${API_BASE}/tickets/${ticketNumber}/close`, {
+export async function closeTicket(ticketNumber, resolutionData= null) {
+    const options = {
         method: "PUT",
-    });
+    };
+
+    if(resolutionData){
+        options.headers = {
+            "Content-Type": "application/json",
+        };
+        options.body = JSON.stringify(resolutionData);
+    }
+
+    const response = await authenticatedFetch(
+        `${API_BASE}/tickets/${encodeURIComponent(ticketNumber)}/close`,
+        options
+    );
+
+    const data = await response.json().catch(() => ({}));
 
     if (!response.ok) {
         throw new Error(
             response.status === 401
                 ? "UNAUTHORIZED"
-                : "Failed to close ticket"
+                : data.detail || data.message || "Failed to close ticket"
         );
     }
 
-    return await response.json();
+    return data;
 }
 
 export async function reopenTicket(

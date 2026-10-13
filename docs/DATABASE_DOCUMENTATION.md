@@ -1283,3 +1283,48 @@ SQLAlchemy. The actual PostgreSQL server configuration, generated
 migration history, indexes beyond those explicitly declared in the
 models, and live row contents are not described here because they were
 not directly inspected.
+
+---
+
+## 29. Latest Structure Addendum — Knowledge Tables
+
+The earlier sections continue to describe the ticket, team, event, user, session, password-reset, and JSON migration structures. The current schema also includes knowledge-related models.
+
+### `knowledge_documents`
+
+| Column | Purpose |
+|---|---|
+| `id` | Primary key |
+| `source_type` | Knowledge category, such as runbook or command reference |
+| `title` | Knowledge item title |
+| `alarm_type` | Alarm category used for filtering |
+| `content` | Knowledge text |
+| `created_at` | Creation timestamp |
+| `updated_at` | Last update timestamp |
+
+This table is represented by the `KnowledgeDocument` SQLAlchemy model.
+
+### `historical_incidents`
+
+| Column | Purpose |
+|---|---|
+| `id` | Primary key |
+| `ticket_id` | Nullable foreign key to `tickets.id`, with `ON DELETE SET NULL` |
+| `alarm_type` | Alarm category associated with the incident |
+| `observed_symptoms` | Symptoms observed during the incident |
+| `root_cause` | Identified cause |
+| `actions_taken` | Remediation steps taken |
+| `shell_commands_used` | Commands used |
+| `shell_script_used` | Script used, if any |
+| `resolution` | Resolution summary |
+| `verification_results` | Verification outcome |
+| `escalation` | Escalation details |
+| `additional_notes` | Other operational notes |
+| `source` | Origin of the record; model default is `migration` |
+| `created_at` / `updated_at` | Timestamps |
+
+This table is represented by the `HistoricalIncident` model. `migrate_knowledge.py` migrates the legacy knowledge corpus into PostgreSQL; the migration documented in the project context imported six runbooks, six command references, and six historical incidents.
+
+### Resolution questionnaire persistence
+
+The frontend now has an optional resolution-questionnaire flow on ticket closure. The intended database operation is to create a `HistoricalIncident` only when questionnaire details are provided, associate it with the ticket's database ID, and use the ticket's stored alarm type. Skipping the questionnaire should close the ticket without inserting an empty incident. This requires the API wrapper and FastAPI close route to accept and persist the payload; verify the live route before treating this behavior as fully integrated.
