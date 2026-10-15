@@ -1,5 +1,4 @@
-import { Bell, X, Menu , LayoutDashboard, Settings} from "lucide-react";
-import { Activity } from "lucide-react";
+import { Bell, X, Menu , LayoutDashboard, Settings, Activity, ChartNoAxesCombined} from "lucide-react";
 
 function Sidebar({ backendOnline, collapsed, onToggle, notificationCount, activePage, onNavigate }) {
     return (
@@ -69,6 +68,17 @@ function Sidebar({ backendOnline, collapsed, onToggle, notificationCount, active
                     >
                         <Activity size={20} />
                         <span>RAG Evaluation</span>
+                    </a>
+
+                    <a
+                        href="http://localhost:3000/d/adkpk4d/alarm-automation-operations?from=-181712-12-08T10:20:31.427Z&to=%2B185764-08-05T10:20:31.427Z&timezone=browser&var-alarm_type=$__all"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="nav-item"
+                        onClick={() => onNavigate("grafana")}
+                    >
+                        <ChartNoAxesCombined size={20} />
+                        <span>Grafana Monitoring</span>
                     </a>
                 </nav>
                 

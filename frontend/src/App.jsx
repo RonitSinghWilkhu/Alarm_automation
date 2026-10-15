@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { Activity } from "lucide-react";
 import Sidebar from "./components/Sidebar";
 import Topbar from "./components/Topbar";
 import Login from "./components/Login";
@@ -88,7 +89,7 @@ function App() {
 
     const getPageFromHash = () => {
         const hash = window.location.hash.replace(/^#\/?/, "");
-        return ["dashboard", "notifications", "settings", "evaluation"].includes(hash)
+        return ["dashboard", "notifications", "settings", "evaluation", "grafana"].includes(hash)
             ? hash
             : "dashboard";
     };
@@ -607,6 +608,54 @@ function App() {
 
                     {activePage === "evaluation" && (
                         <RAGEvaluation />
+                    )}
+
+                    {activePage === "grafana" && (
+                        <section className="grafana-page">
+                            <div className="grafana-page-header">
+                                <div>
+                                    <h2>Grafana Monitoring</h2>
+                                    <p>
+                                        Monitor alarm activity and operational performance
+                                        through your grafana dashboard.
+                                    </p>
+                                </div>
+                            
+                                <span className="grafana-status">
+                                    <span className="grafana-status-dot"></span>
+                                    Dashboard Available
+                                </span>
+                            </div>
+
+                            <div className="grafana-card">
+                                <div className="grafana-card-icon">
+                                    <Activity size={32} />
+                                </div>
+
+                                <div className="grafana-card-content">
+                                    <h3>Alarm Automation - Operations</h3>
+                                    <p>
+                                        View operational metrics, monitoring panels, and
+                                        dashboard visualizations in Grafana.
+                                    </p>
+
+                                    <a
+                                        className="grafana-open-button"
+                                        href="http://localhost:3000/d/adkpk4d/alarm-automation-operations?from=-181712-12-08T10:20:31.427Z&to=%2B185764-08-05T10:20:31.427Z&timezone=browser&var-alarm_type=$__all"
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                    >
+                                        Open Grafana Dashboard
+                                        <span aria-hidden="true"> ↗</span>
+                                    </a>
+                                </div>
+                            </div>
+
+                            <p className="grafana-page-note">
+                                Geafana opens in a seperate browser tab. Your AlarmOps
+                                workspace remains available here.
+                            </p>
+                        </section>
                     )}
 
                 </main>
