@@ -445,21 +445,26 @@ def _search_and_fetch_parents(
 # Public entry point
 # ---------------------------------------------------------------------------
 
-def _get_latest_historical_incidents(alarm_type, limit=2):
-    """Return the latest matching incidents in the ascending ID order."""
+def _get_latest_historical_incidents(alarm_type):
+    """Return the latest matching incident matching the alarm type.
+    Newest last. Falls back to all incidents if none match the alarm type.
+    """
     db= SessionLocal()
 
     try:
         records=(
             db.query(HistoricalIncident)
             .filter(HistoricalIncident.alarm_type == alarm_type)
-            .order_by(HistoricalIncident.id.desc())
-            .limit(limit)
+            .order_by(HistoricalIncident.id.asc())
             .all()
         )
 
-        #the query selects newest first; display oldest first
-        records.reverse()
+        if not records:
+            records = (
+                db.query(HistoricalIncident)
+                .order_by(HistoricalIncident.id.asc())
+                .all()
+            )
 
         incidents = []
 
@@ -557,8 +562,7 @@ def troubleshoot_alarm(
 
     #---Historical incidents: retrieve the latest two from PostgreSQL. ---
     historical_results = _get_latest_historical_incidents(
-        alarm_type,
-        limit=2,
+        alarm_type
     )
 
     runbook_context = "\n\n".join(r.page_content for r in runbook_results)

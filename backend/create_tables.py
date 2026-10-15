@@ -8,7 +8,8 @@ from backend.models import(
     RefreshToken,
     AuthRateLimit,
     KnowledgeDocument,
-    HistoricalIncident
+    HistoricalIncident,
+    RAGEvaluation
 )
 print("Creating db tables...")
 

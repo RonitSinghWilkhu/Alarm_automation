@@ -1,14 +1,16 @@
-from fastapi import FastAPI , HTTPException, Depends 
+from fastapi import FastAPI , HTTPException, Depends , APIRouter
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from backend.rag import troubleshoot_alarm, _build_vector_store , _get_llm, _get_reranker, refresh_vector_store
 from datetime import datetime
 from sqlalchemy.orm import Session
 from backend.database import get_db
-from backend.models import Ticket , TicketEvent, User , HistoricalIncident
+from backend.models import Ticket , TicketEvent, User , HistoricalIncident, RAGEvaluation
 from backend.auth import router as auth_router
 from backend.security import get_current_user
 import logging
+import json
+import os
 
 app=FastAPI()
 
@@ -579,6 +581,50 @@ def troubleshoot(
         "recommendation": result["recommendation"],
         "historicalIncidents": result["historicalIncidents"]
     }
+
+@app.post("/api/evaluate/run")
+def run_evaulate_endpoint(db:Session = Depends(get_db)):
+    """Triggers the RAG evaluation script and saves the result to PostgreSQL."""
+    try:
+        from backend.evaluate import run_evaluation
+        result = run_evaluation(db)
+        return {"success": True, "result":result}
+    except Exception as e:
+        db.rollback()
+        logger.exception("RAG evaluation failed.")
+        return{"success": False, "error": str(e)}
+
+@app.get("/api/evaluate/history")
+def get_evaluation_history(db: Session = Depends(get_db)):
+    """Fetches the history from PostgreSQL."""
+    try:
+        evaluations = (
+            db.query(RAGEvaluation)
+            .order_by(RAGEvaluation.timestamp.desc())
+            .all()
+        )
+
+        history = [
+            {
+                "timestamp": evaluation.timestamp.isoformat(),
+                "scores": {
+                    "context_precision": evaluation.context_precision,
+                    "faithfulness": evaluation.faithfulness,
+                    "answer_relevancy": evaluation.answer_relevancy,
+                    "ground_truth_match": evaluation.ground_truth_match,
+                    "overall_score": evaluation.overall_score,
+                },
+                "num_test_cases": evaluation.num_test_cases,
+                "model_used": evaluation.model_used,
+                "details": evaluation.details,
+            }
+            for evaluation in evaluations
+        ]
+        return {"success": True, "history": history}
+
+    except Exception as e:
+        logger.exception("Failed to fetch RAG evaluation history.")
+        return {"success": False, "error": str(e)}
 
 @app.on_event("startup")
 def load_rag_models():

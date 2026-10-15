@@ -18,6 +18,7 @@ import MessageModal from "./modals/MessageModal";
 import ToastHost from "./components/ToastHost";
 import ReopenTicketModal from "./modals/ReopenTicketModal";
 import ConfirmReopenModal from "./modals/ConfirmReopenModal";
+import RAGEvaluation from "./components/RAGEvaluation";
 import{
     fetchTickets as getTickets,
     fetchNotifications as getNotifications,
@@ -87,7 +88,7 @@ function App() {
 
     const getPageFromHash = () => {
         const hash = window.location.hash.replace(/^#\/?/, "");
-        return ["dashboard", "notifications", "settings"].includes(hash)
+        return ["dashboard", "notifications", "settings", "evaluation"].includes(hash)
             ? hash
             : "dashboard";
     };
@@ -602,6 +603,10 @@ function App() {
                           }}
                           lastDataUpdate={lastDataUpdate}
                       />
+                    )}
+
+                    {activePage === "evaluation" && (
+                        <RAGEvaluation />
                     )}
 
                 </main>

@@ -1,4 +1,5 @@
 import { Bell, X, Menu , LayoutDashboard, Settings} from "lucide-react";
+import { Activity } from "lucide-react";
 
 function Sidebar({ backendOnline, collapsed, onToggle, notificationCount, activePage, onNavigate }) {
     return (
@@ -59,6 +60,15 @@ function Sidebar({ backendOnline, collapsed, onToggle, notificationCount, active
                     >
                         <Settings size={18} />
                         <span>Settings</span>
+                    </a>
+
+                    <a
+                        href="#/evaluation"
+                        className={`nav-item ${activePage === 'evaluation' ? 'active' : ''}`}
+                        onClick={() => onNavigate('evaluation')}
+                    >
+                        <Activity size={20} />
+                        <span>RAG Evaluation</span>
                     </a>
                 </nav>
                 

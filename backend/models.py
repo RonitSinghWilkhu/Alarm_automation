@@ -6,7 +6,9 @@ from sqlalchemy import (
     ForeignKey,
     Integer,
     String,
-    Text
+    Text,
+    JSON,
+    Float
 )
 from sqlalchemy.orm import relationship
 from backend.database import Base
@@ -441,3 +443,26 @@ class HistoricalIncident(Base):
         default=datetime.now,
         onupdate=datetime.now
     )
+
+class RAGEvaluation(Base):
+    __tablename__ = "rag_evaluations"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    timestamp = Column(
+        DateTime,
+        nullable=False,
+        default=datetime.now,
+        index=True
+    )
+
+    context_precision = Column(Float, nullable=False)
+    faithfulness = Column(Float, nullable=False)
+    answer_relevancy = Column(Float, nullable=False)
+    ground_truth_match = Column(Float, nullable=False)
+    overall_score = Column(Float, nullable=False)
+
+    num_test_cases = Column(Integer, nullable=False)
+    model_used = Column(String(100), nullable=False)
+
+    details = Column(JSON, nullable=False, default=list)

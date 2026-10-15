@@ -12,7 +12,8 @@ export default defineConfig({
       '/auth': 'http://localhost:8001',
       '/tickets': 'http://localhost:8001',
       '/notifications': 'http://localhost:8001',
-      '/troubleshoot': 'http://localhost:8001'
+      '/troubleshoot': 'http://localhost:8001',
+      '/api': 'http://localhost:8001'
     }
   }
 })
