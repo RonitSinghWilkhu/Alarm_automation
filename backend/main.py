@@ -16,6 +16,14 @@ app=FastAPI()
 
 logger = logging.getLogger(__name__)
 
+def require_Admin(current_user: User = Depends(get_current_user)):
+    if current_user.role != "admin":
+        raise HTTPException(
+            status_code=403,
+            detail="Admin access required"
+        )
+    return current_user
+
 app.add_middleware(
     CORSMiddleware,
 
@@ -583,7 +591,9 @@ def troubleshoot(
     }
 
 @app.post("/api/evaluate/run")
-def run_evaulate_endpoint(db:Session = Depends(get_db)):
+def run_evaluate_endpoint(
+    db:Session = Depends(get_db),
+    current_user: User = Depends(require_Admin)):
     """Triggers the RAG evaluation script and saves the result to PostgreSQL."""
     try:
         from backend.evaluate import run_evaluation
@@ -595,7 +605,7 @@ def run_evaulate_endpoint(db:Session = Depends(get_db)):
         return{"success": False, "error": str(e)}
 
 @app.get("/api/evaluate/history")
-def get_evaluation_history(db: Session = Depends(get_db)):
+def get_evaluation_history(db: Session = Depends(get_db), current_user: User = Depends(require_Admin)):
     """Fetches the history from PostgreSQL."""
     try:
         evaluations = (

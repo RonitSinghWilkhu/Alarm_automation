@@ -10,8 +10,9 @@ import SummaryCards from "./components/SummaryCards";
 import TicketTable from "./components/TicketTable";
 import Notifications from "./components/Notifications";
 import Settings from "./components/Settings";
-import TicketDetailsModal from "./modals/TicketDetailsModal";
+import UserManagement from "./components/UserManagement";
 import UpgradeModal from "./modals/UpgradeModal";
+import TicketDetailsModal from "./modals/TicketDetailsModal";
 import LogoutConfirmModal from "./modals/LogoutConfirmModal";
 import CloseTicketModal from "./modals/CloseTicketModal";
 import TroubleshootModal from "./modals/TroubleshootModal";
@@ -89,7 +90,7 @@ function App() {
 
     const getPageFromHash = () => {
         const hash = window.location.hash.replace(/^#\/?/, "");
-        return ["dashboard", "notifications", "settings", "evaluation", "grafana"].includes(hash)
+        return ["dashboard", "notifications", "settings", "evaluation", "grafana", "users"].includes(hash)
             ? hash
             : "dashboard";
     };
@@ -228,11 +229,25 @@ function App() {
 
     useEffect(() => {
       const handleHashChange = () => {
-        setActivePage(getPageFromHash());
+        const requestedPage = getPageFromHash();
 
         if(window.location.hash.startsWith("#/reset-password")) {
             setAuthScreen("reset-password");
+            return;
         }
+
+        if(
+            (requestedPage === "evaluation" || 
+             requestedPage === "grafana" ||
+             requestedPage === "users") &&
+            currentUser?.role !== "admin"
+        ){
+            window.location.hash = "/#dashboard";
+            setActivePage("dashboard");
+            return;
+        }
+
+        setActivePage(requestedPage);
       };
 
       window.addEventListener("hashchange", handleHashChange);
@@ -240,7 +255,7 @@ function App() {
       return () => {
         window.removeEventListener("hashchange", handleHashChange);
       };
-    }, []);
+    }, [currentUser]);
 
     // --- Handlers ---
     const handleColumnFilterChange = (field, value) => {
@@ -512,6 +527,7 @@ function App() {
                 collapsed={sidebarCollapsed} 
                 onToggle={() => setSidebarCollapsed(!sidebarCollapsed)} 
                 notificationCount={sidebarNotificationCount} 
+                userRole={currentUser?.role}
                 activePage={activePage}
                 onNavigate={(page) => {
                     setActivePage(page);
@@ -657,6 +673,8 @@ function App() {
                             </p>
                         </section>
                     )}
+
+                    {activePage === "users" && <UserManagement />}
 
                 </main>
             </div>

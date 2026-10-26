@@ -226,6 +226,13 @@ class User(Base):
         default=True
     )
 
+    role = Column(
+        String(20),
+        nullable=False,
+        default="user",
+        server_default="user"
+    )
+
     created_at = Column(
         DateTime,
         nullable=False,
@@ -250,6 +257,8 @@ class User(Base):
         back_populates="user",
         cascade="all, delete-orphan"
     )
+
+
 
 class PasswordResetToken(Base):
     __tablename__ = "password_reset_tokens"

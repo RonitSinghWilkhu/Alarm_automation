@@ -65,6 +65,9 @@ class ResetPasswordRequest(BaseModel):
     token: str
     new_password: str
 
+class RoleUpdate(BaseModel):
+    role: str
+
 @router.post(
     "/register",
     status_code=201
@@ -170,7 +173,8 @@ def register(
             "id": user.id,
             "fullName": user.full_name,
             "username": user.username,
-            "email": user.email
+            "email": user.email,
+            "role": user.role
         }
     }
 
@@ -259,7 +263,8 @@ def login(
             "id": user.id,
             "fullName": user.full_name,
             "username": user.username,
-            "email": user.email
+            "email": user.email,
+            "role": user.role
         }
     }
 
@@ -347,7 +352,8 @@ def get_me(
         "id": current_user.id,
         "fullName": current_user.full_name,
         "username": current_user.username,
-        "email": current_user.email
+        "email": current_user.email,
+        "role": current_user.role
     }
 
 @router.post("/forgot-password")
@@ -480,4 +486,92 @@ def reset_password(
 
     return {
         "message": "Password reset successful"
+    }
+
+@router.get("/users")
+def get_all_users(
+    db:Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    if current_user.role != "admin":
+        raise HTTPException(
+            status_code=403,
+            detail="Admin access required"
+        )
+
+    users = (
+        db.query(User)
+        .order_by(User.id.asc())
+        .all()
+    )
+
+    return{
+        "users": [
+            {
+                "id": user.id,
+                "fullName": user.full_name,
+                "username": user.username,
+                "email": user.email,
+                "role": user.role,
+                "isActive": user.is_active
+            }
+            for user in users
+        ]
+    }
+
+@router.patch("/users/{user_id}/role")
+def update_user_role(
+    user_id: int,
+    payload: RoleUpdate,
+    db:Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    #only admin can change the user roles
+    if current_user.role != "admin":
+        raise HTTPException(
+            status_code=403,
+            detail="Admin access required"
+        )
+
+    #validate the requested role
+    if payload.role not in ["admin", "user"]:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid role. Allowed roles: admin, user"
+        )
+
+    #find the target user
+    user = db.query(User).filter(User.id == user_id).first()
+
+    if not user:
+        raise HTTPException(
+            status_code=404,
+            detail="User not found"
+        )
+
+    #prevent the last admin from being demoted
+    if user.role == "admin" and payload.role != "admin":
+        admin_count = db.query(User).filter(
+            User.role == "admin",
+            User.is_active == True
+        ).count()
+
+        if admin_count <= 1:
+            raise HTTPException(
+                status_code=400,
+                detail="Cannot demote the last admin"
+            )
+
+    #update and save the role
+    user.role = payload.role
+    db.commit()
+    db.refresh(user)
+
+    return{
+        "message": "User role updated successfully",
+        "user": {
+            "id": user.id,
+            "username": user.username,
+            "role": user.role
+        }
     }
