@@ -1,1098 +1,807 @@
-# Alarm Automation & AI Troubleshooting Assistant
+# 🚨 Alarm Automation & AI Troubleshooting Assistant
 
-An end-to-end telecom operations automation platform that processes network alarms, groups related events, analyzes operational impact, calculates ticket priority, generates tickets and notifications, persists operational data in PostgreSQL, and provides an AI-assisted troubleshooting interface for network operators.
+<div align="center">
 
-The project combines a **Java-based deterministic alarm-processing pipeline**, a **FastAPI backend**, **PostgreSQL database**, **React/Vite dashboard**, and a **Retrieval-Augmented Generation (RAG) troubleshooting system**.
+**A telecom operations automation prototype with alarm-to-ticket processing, AI-assisted troubleshooting, Root Cause Analysis (RCA), and historical incident retrieval**
 
----
+[![Python](https://img.shields.io/badge/Python-3.10+-blue.svg)](https://www.python.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.100+-green.svg)](https://fastapi.tiangolo.com/)
+[![React](https://img.shields.io/badge/React-19-61DAFB.svg)](https://react.dev/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15+-336791.svg)](https://www.postgresql.org/)
+[![License](https://img.shields.io/badge/License-Educational-orange.svg)]()
 
-## Table of Contents
+[Features](#-key-features) • [Architecture](#-system-architecture) • [Installation](#-installation) • [Usage](#-usage) • [AI Features](#-ai--rag-features)
 
-- [Overview](#overview)
-- [Key Features](#key-features)
-- [System Architecture](#system-architecture)
-- [End-to-End Workflow](#end-to-end-workflow)
-- [Technology Stack](#technology-stack)
-- [Project Structure](#project-structure)
-- [Java Alarm Processing Pipeline](#java-alarm-processing-pipeline)
-- [JSON Output and PostgreSQL Migration](#json-output-and-postgresql-migration)
-- [Backend](#backend)
-- [Database Design](#database-design)
-- [Authentication and Security](#authentication-and-security)
-- [Ticket Lifecycle](#ticket-lifecycle)
-- [Notification System](#notification-system)
-- [AI Troubleshooting and RAG](#ai-troubleshooting-and-rag)
-- [Frontend](#frontend)
-- [API Endpoints](#api-endpoints)
-- [Installation](#installation)
-- [Configuration](#configuration)
-- [Running the Project](#running-the-project)
-- [Running the Java Pipeline](#running-the-java-pipeline)
-- [Running the Backend](#running-the-backend)
-- [Running the Frontend](#running-the-frontend)
-- [Automatic CSV Monitoring](#automatic-csv-monitoring)
-- [Database Migration](#database-migration)
-- [Example Workflow](#example-workflow)
-- [Human-in-the-Loop Design](#human-in-the-loop-design)
-- [Current Limitations](#current-limitations)
-- [Future Improvements](#future-improvements)
-- [Disclaimer](#disclaimer)
+</div>
 
 ---
 
-# Overview
+## 📋 Overview
 
-Telecom networks continuously generate alarms related to connectivity, power, radio conditions, hardware, CPU utilization, temperature, and other operational conditions.
+Alarm Automation is a telecom operations prototype that processes network alarm data into tickets, exposes ticket operations through a backend API, and provides a React-based operator interface.
 
-Manually analyzing every alarm can result in:
+It also provides AI-assisted troubleshooting and Root Cause Analysis (RCA). The RAG subsystem retrieves runbooks, command references, and historical incidents from a PostgreSQL-backed knowledge base and a persistent FAISS vector index. Operators can record resolution information so that incident knowledge can be made available to later retrieval.
 
-- duplicated investigations
-- delayed ticket creation
-- inconsistent prioritization
-- increased operator workload
-- difficulty identifying historical incidents
-- slower troubleshooting
+The application is a demonstration system. It does not connect to or control a live telecom network.
 
-This project automates the initial alarm-analysis workflow while keeping important operational decisions under human control.
-
-The system currently performs the following workflow:
+### What It Does
 
 ```text
 Network Alarm CSV
-       │
-       ▼
+       |
+       v
 Java Alarm Processing
-       │
-       ├── Read alarms
-       ├── Group related alarms
-       ├── Analyze impact
-       ├── Calculate priority
-       ├── Generate ticket drafts
-       ├── Create P4 tickets
-       └── Generate notifications
-       │
-       ▼
-JSON Files
-       │
-       ├── output/tickets.json
-       └── output/notifications.json
-       │
-       ▼
-JSON → PostgreSQL Migration
-       │
-       ▼
+       |
+       v
+Ticket and Notification JSON
+       |
+       v
+Python Migration Script
+       |
+       v
 PostgreSQL
-       │
-       ▼
+       |
+       v
 FastAPI Backend
-       │
-       ├── Authentication
-       ├── Ticket management
-       ├── Ticket lifecycle
-       ├── Notifications
-       └── AI troubleshooting
-       │
-       ▼
-React + Vite Dashboard
+       |
+       v
+React Operator Interface
+       |
+       +-------------------------+
+       |                         |
+       v                         v
+RAG Troubleshooting             RCA
+       |                         |
+       +------------+------------+
+                    |
+                    v
+             Operator Review
+                    |
+                    v
+          Resolution Information
+                    |
+                    v
+        Historical Incident Records
+                    |
+                    v
+          Future Knowledge Retrieval
 ```
 
-The Java pipeline and FastAPI backend are therefore separate stages in the current implementation. The Java application currently writes operational data to JSON, while `migrate_json_to_db.py` imports that data into PostgreSQL.
+The Java-to-database handoff is file-based: Java generates JSON, and a Python migration script imports the JSON data into PostgreSQL. Java should not be described as writing directly to PostgreSQL.
+
+### Project Goals
+
+- Automate the initial processing of alarm records and ticket generation.
+- Provide operators with AI-assisted troubleshooting recommendations.
+- Make historical incident information retrievable for similar alarms.
+- Support evidence-based RCA with explicit uncertainty and evidence gaps.
+- Evaluate RAG responses using an LLM-as-a-judge process.
+- Keep operational decisions under human control.
 
 ---
 
-# Key Features
+## ✨ Key Features
 
-## Alarm Processing
+### 🎫 Ticket Management
 
-- Reads telecom alarms from CSV input
-- Groups alarms by network node and alarm type
-- Calculates occurrence counts
-- Determines users impacted
-- Evaluates severity
-- Detects threshold breaches
-- Calculates operational impact
-- Assigns initial ticket priority
-- Assigns operational teams based on alarm type
+- **Automated Ticket Generation:** Java processes alarm input and generates ticket data.
+- **Priority Management:** The application supports ticket priority operations.
+- **Lifecycle Tracking:** Ticket events record supported ticket actions.
+- **SLA Information:** The frontend includes ticket/SLA-related information where configured.
+- **Team Assignment:** Ticket data includes assigned-team information.
 
-## Ticket Automation
+Exact priority rules, SLA calculations, and assignment mappings are implementation-specific. Check the current Java and backend source before relying on particular thresholds or mappings.
 
-- Generates ticket drafts
-- Creates P4 tickets for human review
-- Generates persistent ticket numbers
-- Preserves existing ticket numbers when the same node/alarm combination already exists
-- Writes tickets to JSON
-- Imports tickets into PostgreSQL
+### 🔐 Authentication & Authorization
 
-## Ticket Lifecycle Management
+- JWT access and refresh tokens.
+- HTTP-only authentication cookies.
+- User and admin roles.
+- Backend authorization for protected administrative operations.
+- Refresh-token persistence and revocation.
+- Password-reset functionality.
+- Authentication rate-limiting support.
 
-Operators can:
+**Important:** The authentication system is not entirely stateless. Access tokens are validated as JWTs, while refresh-token records are stored server-side to support persistence and revocation. HTTP-only cookies alone do not provide complete CSRF protection.
 
-- view tickets
-- filter tickets
-- inspect ticket details
-- acknowledge notifications
-- change ticket priority
-- upgrade priority
-- downgrade priority
-- close tickets
-- reopen tickets
-- provide a reason when reopening a ticket
+### 🤖 AI-Powered Features
 
-## Notification Management
+- **RAG Troubleshooting:** Retrieves relevant runbooks, command references, and historical incidents before generating a recommendation.
+- **Root Cause Analysis:** Analyzes historical evidence, recorded resolution details, and potentially related tickets.
+- **Historical Incident Retrieval:** Makes prior incident records available to retrieval.
+- **Evidence Gap Reporting:** Identifies missing fields in recorded resolution information.
+- **Temporal Correlation:** Identifies different alarm types on the same node within the RCA correlation window.
+- **RAG Evaluation:** Uses a separate LLM judge to score troubleshooting results.
 
-The system generates notification events for ticket activity such as:
+RAG and RCA are assistive features. Their outputs require operator review and do not establish a verified root cause automatically.
 
-- ticket creation
-- priority upgrade
-- priority downgrade
-- ticket closure
-- ticket reopening
+### 📊 Admin Features
 
-Notifications are derived from `TicketEvent` records in the backend.
+- User administration.
+- Role management, including last-admin protection where enforced by the backend.
+- RAG evaluation execution and history.
+- Grafana navigation link, if configured.
 
-## Authentication
+### 🎨 Frontend Experience
 
-The application supports:
+The React frontend provides the operator interface for dashboard, ticket, notification, settings, and administrative workflows. It includes the documented resolution questionnaire and authenticated API request handling.
 
-- user registration
-- login
-- logout
-- session validation
-- password reset
-- password hashing
-- session expiration
-- session revocation
-- login rate limiting
-- registration rate limiting
-- password-reset rate limiting
-
-## AI Troubleshooting
-
-The application provides an AI-assisted troubleshooting workflow using:
-
-- telecom runbooks
-- diagnostic shell-command references
-- historical incidents
-- vector search
-- embeddings
-- reranking
-- Groq-hosted LLM inference
-
-The AI provides recommendations to the operator but does **not automatically execute shell commands or perform ticket actions**.
+Specific refresh intervals, filtering behavior, page routes, and component names should be checked against the current frontend source rather than assumed from this overview.
 
 ---
 
-# System Architecture
+## 🏗️ System Architecture
 
 ```mermaid
 flowchart TD
+    A[Alarm CSV] --> B[Java Processing]
+    B --> C[tickets.json and notifications.json]
+    C --> D[Python JSON Migration]
+    D --> E[(PostgreSQL)]
 
-    A[Telecom Alarm CSV] --> B[Java Alarm Processing Pipeline]
+    F[Legacy Knowledge Files] --> G[Knowledge Migration]
+    G --> E
 
-    B --> B1[Alarm Reader]
-    B1 --> B2[Alarm Grouper]
-    B2 --> B3[Impact Analyzer]
-    B3 --> B4[Priority Calculator]
-    B4 --> B5[Ticket Draft Generator]
-    B5 --> B6[Ticket Creator]
-    B6 --> B7[Notification Generator]
+    E --> H[FastAPI Backend]
+    H --> I[Authentication and Authorization]
+    H --> J[Ticket and Notification APIs]
+    H --> K[RAG Troubleshooting]
+    H --> L[RCA Pipeline]
+    H --> M[RAG Evaluation]
 
-    B6 --> C[output/tickets.json]
-    B7 --> D[output/notifications.json]
+    K --> N[Persistent FAISS Index]
+    L --> N
+    N --> O[HuggingFace Embeddings]
+    N --> P[BGE Cross-Encoder Reranker]
+    K --> Q[Groq LLM]
+    L --> Q
+    M --> R[Groq LLM Judge]
 
-    C --> E[JSON to PostgreSQL Migration]
-    D --> E
-
-    E --> F[(PostgreSQL)]
-
-    F --> G[FastAPI Backend]
-
-    G --> G1[Authentication]
-    G --> G2[Ticket APIs]
-    G --> G3[Notification APIs]
-    G --> G4[Ticket Lifecycle APIs]
-    G --> G5[RAG Troubleshooting API]
-
-    G5 --> H[Knowledge Base]
-
-    H --> H1[Telecom Runbooks]
-    H --> H2[Shell Commands]
-    H --> H3[Historical Incidents]
-
-    H --> I[FAISS Vector Store]
-    I --> J[Hugging Face Embeddings]
-    I --> K[FlagReranker]
-    K --> L[Groq LLM]
-
-    G --> M[React + Vite Frontend]
-
-    M --> M1[Dashboard]
-    M --> M2[Ticket Table]
-    M --> M3[Notifications]
-    M --> M4[Authentication]
-    M --> M5[Ticket Actions]
-    M --> M6[AI Troubleshooting]
+    H <--> S[React Frontend]
+    S --> T[Operator Resolution Capture]
+    T --> E
 ```
+
+The diagram shows logical relationships. It does not mean all components run in one process or that every API request invokes the RAG, RCA, or evaluation subsystem.
+
+### Architecture Highlights
+
+1. **Java Processing:** Produces ticket and notification JSON from alarm input.
+2. **JSON Handoff:** Separates Java processing from Python database ingestion.
+3. **PostgreSQL:** Stores relational application data, knowledge records, and evaluation history.
+4. **FastAPI:** Exposes application functionality and enforces backend authentication/authorization.
+5. **RAG:** Uses FAISS retrieval, MMR, reranking, parent-document resolution, and LLM generation.
+6. **RCA:** Combines historical incidents, current recorded resolution, and related-ticket correlation.
+7. **Evaluation:** Uses an LLM judge to score troubleshooting results.
+8. **Frontend:** Provides the operator and admin interface.
+
+PostgreSQL is the primary relational persistence layer. FAISS is a derived vector-search structure; it is not a replacement for PostgreSQL.
 
 ---
 
-# End-to-End Workflow
+## 🛠️ Technology Stack
 
-The current implementation consists of several distinct stages.
+### Backend
 
-## Stage 1 — Alarm Input
+| Technology | Role |
+|---|---|
+| Python | Backend and AI workflow implementation |
+| FastAPI | REST API framework |
+| SQLAlchemy | ORM/database access |
+| PostgreSQL | Relational persistence |
+| PyJWT | JWT handling |
+| `pwdlib[argon2]` | Password hashing support |
+| LangChain | Document processing and retrieval orchestration |
+| FAISS | Vector similarity search |
+| HuggingFace embeddings | Text embeddings |
+| FlagEmbedding | Cross-encoder reranking |
+| Groq integration | LLM inference |
 
-Alarm information is stored in:
+### Frontend
+
+| Technology | Role |
+|---|---|
+| React | User interface |
+| Vite | Development server and build tooling |
+| Lucide React | Icons |
+| CSS | Application styling |
+
+### Data Processing
+
+| Technology | Role |
+|---|---|
+| Java | Alarm processing and ticket/notification generation |
+| Gson | JSON serialization, as documented for the Java layer |
+| Python migration scripts | Import JSON and legacy knowledge into PostgreSQL |
+
+### AI Model Configuration
+
+The supplied backend implementation documents these model identifiers:
+
+| Purpose | Model |
+|---|---|
+| Troubleshooting generation | `openai/gpt-oss-20b` |
+| RAG evaluation judge | `openai/gpt-oss-120b` |
+| Cross-encoder reranker | `BAAI/bge-reranker-v2-m3` |
+
+The embedding model identifier and exact configuration should be checked against the current `backend/rag.py` constants. Do not infer it from the reranker name: embeddings and reranking are separate model roles.
+
+---
+
+## 📦 Installation
+
+The following is a local-development setup outline. Confirm that paths, environment variable names, and commands match the current repository before using them in another environment.
+
+### Prerequisites
+
+- Java JDK compatible with the project's Java source.
+- Python 3.10 or later.
+- Node.js and npm compatible with the frontend dependencies.
+- PostgreSQL.
+- A Groq API key for LLM-backed features.
+
+### Step 1: Clone the Repository
+
+```bash
+git clone https://github.com/RonitSinghWilkhu/Alarm_automation.git
+cd Alarm_automation
+```
+
+### Step 2: Create the PostgreSQL Database
+
+For example:
+
+```bash
+createdb alarm_automation
+```
+
+Or use `psql`:
+
+```sql
+CREATE DATABASE alarm_automation;
+```
+
+Use the database name and credentials configured by your environment.
+
+### Step 3: Configure Environment Variables
+
+Create the environment file expected by the backend configuration. The following names are examples from the documented setup; verify the current code for the exact names and defaults.
+
+```env
+# Database
+DATABASE_URL=postgresql://username:password@localhost:5432/alarm_automation
+
+# JWT authentication
+JWT_SECRET_KEY=replace-with-a-long-random-secret
+JWT_ALGORITHM=HS256
+JWT_ACCESS_TOKEN_EXPIRE_MINUTES=30
+JWT_REFRESH_TOKEN_EXPIRE_DAYS=7
+JWT_ISSUER=alarmops-api
+JWT_AUDIENCE=alarmops-client
+
+# Groq
+GROQ_API_KEY=your_groq_api_key
+
+# Cookie security
+AUTH_COOKIE_SECURE=false
+```
+
+For HTTPS production deployments, cookie security settings must be configured appropriately. Do not use the example secret in a real deployment.
+
+Never commit `.env` files or credentials to version control. Ensure they are covered by `.gitignore`.
+
+### Step 4: Install Python Dependencies
+
+```bash
+pip install -r requirements.txt
+```
+
+The documented dependency set includes packages for:
+
+```text
+fastapi
+uvicorn
+sqlalchemy
+psycopg2-binary
+PyJWT
+pwdlib[argon2]
+langchain
+langchain-groq
+faiss-cpu
+sentence-transformers
+FlagEmbedding
+python-dotenv
+```
+
+The repository's current `requirements.txt` is authoritative. Install from that file rather than manually pinning versions based only on this list.
+
+### Step 5: Install Frontend Dependencies
+
+```bash
+cd frontend
+npm install
+cd ..
+```
+
+### Step 6: Create Database Tables
+
+The documented command is:
+
+```bash
+python -m backend.create_tables
+```
+
+The documented schema contains these ten tables:
+
+- `teams`
+- `tickets`
+- `ticket_events`
+- `users`
+- `refresh_tokens`
+- `password_reset_tokens`
+- `auth_rate_limits`
+- `knowledge_documents`
+- `historical_incidents`
+- `rag_evaluations`
+
+Confirm the current `backend/models.py` and table-creation implementation if the schema has changed.
+
+### Step 7: Import Legacy Knowledge
+
+The documented knowledge migration command is:
+
+```bash
+python migrate_knowledge.py
+```
+
+This migration imports the legacy runbook, command-reference, and historical-incident data into PostgreSQL.
+
+Run it according to the migration script's current behavior. Check its duplicate handling before rerunning it against an already populated database.
+
+### Step 8: Import Generated Ticket Data
+
+After Java has generated the JSON files, run the documented migration command:
+
+```bash
+python -m backend.migrate_json_to_db
+```
+
+This imports ticket and notification data into PostgreSQL. The exact input paths and deduplication behavior are defined by the migration script.
+
+---
+
+## 🚀 Usage
+
+### Running the Application
+
+The documented local workflow uses separate processes. Java processing and JSON migration are data-generation/import steps; the backend and frontend are the application services.
+
+#### Terminal 1: Java Processing (Optional)
+
+Run this when you need to generate ticket and notification JSON from the alarm input.
+
+The original project instructions document this Windows-oriented compilation example:
+
+```powershell
+javac -d out -cp "lib\*" .\src\model\*.java .\src\processing\*.java .\src\file\*.java .\src\Main.java
+java -cp "out;lib\*" Main
+```
+
+This command assumes the source folders and dependency JARs match the current project structure. Adjust it if the Java project layout has changed.
+
+The documented input is:
 
 ```text
 data/alarm.csv
 ```
 
-The Java application reads this file and converts each row into an `alarm` object.
-
----
-
-## Stage 2 — Alarm Grouping
-
-Related alarms are grouped using:
-
-```text
-node + alarmType
-```
-
-For example:
-
-```text
-NODE-101 + HIGH_CPU
-NODE-101 + HIGH_CPU
-NODE-101 + HIGH_CPU
-```
-
-becomes one alarm group.
-
-This allows repeated alarms for the same network condition to be analyzed together.
-
----
-
-## Stage 3 — Impact Analysis
-
-Each alarm group is analyzed to determine:
-
-- occurrence count
-- users impacted
-- highest severity
-- whether a threshold was breached
-- impact level
-- earliest alarm timestamp
-
-The current impact rules include:
-
-```text
-Users impacted >= 1000
-        → HIGH
-
-Users impacted >= 100 AND occurrences >= 2
-        → HIGH
-
-Users impacted >= 100
-        → MEDIUM
-
-Occurrences >= 3
-        → MEDIUM
-
-Threshold breached
-        → LOW
-
-Otherwise
-        → LOW
-```
-
----
-
-## Stage 4 — Priority Calculation
-
-The current Java priority calculator intentionally creates:
-
-```text
-P4
-```
-
-tickets for all automatically generated tickets.
-
-The reason depends on the calculated impact:
-
-- HIGH impact → P4 ticket for human review and escalation
-- MEDIUM impact → P4 ticket for human review
-- LOW impact → P4 ticket for verification or closure
-
-This is intentional in the current implementation.
-
-The system does not automatically create P1/P2/P3 tickets during the Java processing stage.
-
-Operators can later change the priority through the dashboard.
-
----
-
-## Stage 5 — Ticket Draft Generation
-
-The system creates ticket drafts containing information such as:
-
-- node
-- alarm type
-- occurrence count
-- users impacted
-- severity
-- threshold status
-- impact level
-- priority
-- assigned team
-- status
-- reason
-- creation timestamp
-
-Teams are assigned according to alarm type.
-
-Current mappings include:
-
-| Alarm Type | Assigned Team |
-|---|---|
-| `S1_LINK_DOWN` | Transport |
-| `POWER_FAILURE` | Power |
-| `HIGH_CPU` | Platform |
-| `VSWR_HIGH` | Radio |
-| `CELL_UNAVAILABLE` | Radio |
-| `HIGH_TEMPERATURE` | Hardware |
-| Other | Network Operations |
-
----
-
-## Stage 6 — Ticket Creation
-
-The Java `ticketCreator` creates actual tickets from the drafts.
-
-Ticket numbers use the format:
-
-```text
-AL-10001
-AL-10002
-AL-10003
-...
-```
-
-Existing tickets are read from:
+The documented outputs are:
 
 ```text
 output/tickets.json
-```
-
-The system attempts to preserve an existing ticket number for the same:
-
-```text
-node + alarmType
-```
-
-combination.
-
----
-
-## Stage 7 — Notification Generation
-
-For every generated ticket, a notification is created.
-
-A typical notification message is:
-
-```text
-New P4 ticket created for HIGH_CPU on NODE-101
-```
-
-Notifications are written to:
-
-```text
 output/notifications.json
 ```
 
----
+#### Terminal 2: Migrate JSON to PostgreSQL
 
-# JSON Output and PostgreSQL Migration
+After the JSON files have been generated:
 
-An important part of the current architecture is that **Java does not directly write to PostgreSQL**.
-
-The current data flow is:
-
-```text
-Java
-  │
-  ├── output/tickets.json
-  └── output/notifications.json
-           │
-           ▼
-migrate_json_to_db.py
-           │
-           ▼
-PostgreSQL
+```bash
+python -m backend.migrate_json_to_db
 ```
 
-## Ticket JSON
+#### Terminal 3: FastAPI Backend
 
-The Java pipeline writes:
-
-```text
-output/tickets.json
+```bash
+uvicorn backend.main:app --port 8001 --reload
 ```
 
-using Gson.
-
-## Notification JSON
-
-The Java pipeline writes:
+The documented local backend address is:
 
 ```text
-output/notifications.json
+http://127.0.0.1:8001
 ```
 
-also using Gson.
-
-## Database Migration
-
-The migration script:
+The documented API documentation address is:
 
 ```text
-backend/migrate_json_to_db.py
+http://127.0.0.1:8001/docs
 ```
 
-reads both JSON files and imports the information into PostgreSQL.
+These addresses assume the documented local port and default host binding.
 
-During migration it:
+#### Terminal 4: React Frontend
 
-1. loads ticket JSON
-2. loads notification JSON
-3. creates missing teams
-4. creates tickets
-5. maps ticket numbers to database records
-6. converts notification records into `TicketEvent` records
-7. prevents duplicate events
-8. commits the transaction
+```bash
+cd frontend
+npm run dev
+```
 
-Therefore, PostgreSQL becomes the backend application's operational data source after migration.
-
----
-
-# Backend
-
-The backend is implemented using **FastAPI**.
-
-Its responsibilities include:
-
-- authentication
-- session management
-- database access
-- ticket retrieval
-- ticket updates
-- priority changes
-- closing tickets
-- reopening tickets
-- acknowledging notifications
-- notification generation from ticket events
-- AI troubleshooting
-
-The backend uses:
+The documented Vite development address is:
 
 ```text
-FastAPI
-SQLAlchemy
-PostgreSQL
-Pydantic
-pwdlib
+http://localhost:5173
 ```
+
+The actual address is printed by Vite and may differ if the configured port is unavailable or changed.
+
+### First-Time Setup
+
+1. Start PostgreSQL.
+2. Configure the backend environment variables.
+3. Create the database tables.
+4. Import the legacy knowledge data.
+5. Generate and migrate ticket data if you want sample tickets.
+6. Start the FastAPI backend.
+7. Start the React frontend.
+8. Open the frontend URL printed by Vite.
+9. Register or sign in using the authentication flow configured by the application.
+
+Do not assume that the first registered user automatically becomes an administrator unless the current registration implementation explicitly grants that role.
+
+### Administrator Setup
+
+The previous project instructions described promoting a user through a direct SQL update:
+
+```sql
+UPDATE users
+SET role = 'admin'
+WHERE username = 'your_username';
+```
+
+Use this only if the current schema uses the `users` table and `username` column, and only when you have authorized database-administrator access. Prefer the application's admin workflow once an administrator account exists.
 
 ---
 
-# Database Design
+## 📡 API Endpoints
 
-The database is implemented using SQLAlchemy ORM.
+The following endpoint paths were documented for the project. Verify them against the current FastAPI route definitions before treating this table as a definitive API contract.
 
-The main entities include:
+### Authentication
 
-```text
-Team
-Ticket
-TicketEvent
-User
-UserSession
-PasswordResetToken
-AuthRateLimit
-```
+| Method | Endpoint | Purpose |
+|---|---|---|
+| `POST` | `/auth/register` | Register a user |
+| `POST` | `/auth/login` | Authenticate and set token cookies |
+| `POST` | `/auth/refresh` | Refresh access authentication |
+| `POST` | `/auth/logout` | Log out and revoke refresh-token state |
+| `GET` | `/auth/me` | Retrieve the current user |
+| `POST` | `/auth/forgot-password` | Start password-reset workflow |
+| `POST` | `/auth/reset-password` | Reset password using reset credentials |
 
-## Team
+### Tickets
 
-Stores operational teams.
+| Method | Endpoint | Purpose |
+|---|---|---|
+| `GET` | `/tickets` | Retrieve tickets |
+| `PUT` | `/tickets/{id}/priority` | Change ticket priority |
+| `PUT` | `/tickets/{id}/close` | Close a ticket, optionally with resolution data |
+| `PUT` | `/tickets/{id}/reopen` | Reopen a ticket |
+| `PUT` | `/tickets/{id}/acknowledge` | Acknowledge a notification or ticket event, as implemented |
 
-Example:
+### Notifications and AI
 
-```text
-Transport
-Power
-Platform
-Radio
-Hardware
-Network Operations
-```
+| Method | Endpoint | Purpose |
+|---|---|---|
+| `GET` | `/notifications` | Retrieve notifications |
+| `GET` | `/troubleshoot/{id}` | Request AI troubleshooting |
+| `GET` | `/rca/{id}` | Request RCA |
 
----
+### Administration and Evaluation
 
-## Ticket
+| Method | Endpoint | Purpose |
+|---|---|---|
+| `GET` | `/auth/users` | List users |
+| `PATCH` | `/auth/users/{id}/role` | Update a user's role |
+| `POST` | `/api/evaluate/run` | Run RAG evaluation |
+| `GET` | `/api/evaluate/history` | Retrieve evaluation history |
 
-Stores operational ticket information including:
-
-- ticket number
-- node
-- alarm type
-- occurrence count
-- users impacted
-- severity
-- threshold status
-- impact level
-- priority
-- assigned team
-- status
-- reason
-- creation time
-- update time
-- closure time
-- reopen time
+The exact authentication dependencies and role restrictions are defined by the backend. A frontend page being hidden does not replace server-side authorization.
 
 ---
 
-## TicketEvent
+## 🤖 AI & RAG Features
 
-Stores ticket lifecycle events.
+### 1. RAG Troubleshooting
 
-Examples include:
-
-```text
-TICKET_CREATED
-PRIORITY_UPGRADE
-PRIORITY_DOWNGRADE
-TICKET_CLOSED
-TICKET_REOPENED
-```
-
-Ticket events provide the historical record used to build notification information.
-
----
-
-## User
-
-Stores application users.
-
-User information includes:
-
-- full name
-- username
-- email
-- password hash
-- active status
-- creation timestamp
-- update timestamp
-
----
-
-## UserSession
-
-Stores authenticated application sessions.
-
-Session tokens are hashed before being stored.
-
----
-
-## PasswordResetToken
-
-Stores password reset token information and expiration state.
-
----
-
-## AuthRateLimit
-
-Stores authentication-related rate-limit information.
-
-This is used to limit repeated:
-
-- login attempts
-- registration attempts
-- password-reset requests
-
----
-
-# Authentication and Security
-
-The application uses server-side sessions rather than storing authentication state in browser local storage.
-
-The authentication flow is:
+When a user requests troubleshooting, the backend retrieves relevant knowledge and uses it as context for an LLM-generated recommendation.
 
 ```text
-React Login Form
-       │
-       ▼
-POST /auth/login
-       │
-       ▼
-FastAPI
-       │
-       ├── Verify password
-       ├── Check rate limit
-       ├── Create session
-       └── Set alarmops_session cookie
-       │
-       ▼
-React Application
-```
-
-The session cookie is:
-
-```text
-alarmops_session
-```
-
-The cookie is configured with:
-
-- HttpOnly
-- SameSite=Lax
-- configurable Secure flag
-- 8-hour maximum age
-
-Password hashing uses `pwdlib` with the recommended password hashing configuration.
-
-Session tokens and password-reset tokens are hashed before being stored in the database.
-
----
-
-# Ticket Lifecycle
-
-The ticket lifecycle is operator-driven.
-
-```text
-             ┌─────────────┐
-             │    OPEN     │
-             └──────┬──────┘
-                    │
-          ┌─────────┼─────────┐
-          │         │         │
-          ▼         ▼         ▼
-     Priority     Ack       Close
-       Change      Event       │
-          │                   ▼
-          │              ┌─────────┐
-          │              │ CLOSED  │
-          │              └────┬────┘
-          │                   │
-          │                 Reopen
-          │                   │
-          └───────────────────▼
-                              OPEN
-```
-
-## Priority Changes
-
-The backend supports both:
-
-```text
-PRIORITY_UPGRADE
-```
-
-and:
-
-```text
-PRIORITY_DOWNGRADE
-```
-
-For example:
-
-```text
-P4 → P3
-```
-
-is an upgrade.
-
-While:
-
-```text
-P2 → P3
-```
-
-is a downgrade.
-
----
-
-## Closing a Ticket
-
-An operator can close an open ticket.
-
-The backend:
-
-1. changes status to `CLOSED`
-2. records `closed_at`
-3. creates a `TICKET_CLOSED` event
-
----
-
-## Reopening a Ticket
-
-A closed ticket can be reopened.
-
-The operator must provide:
-
-- new priority
-- reopen reason
-
-The backend:
-
-1. changes status to `OPEN`
-2. updates the priority
-3. records `reopened_at`
-4. creates a `TICKET_REOPENED` event
-
----
-
-# Notification System
-
-Notifications are event-based.
-
-The database stores ticket events in:
-
-```text
-ticket_events
-```
-
-The `/notifications` endpoint converts those events into notification objects for the frontend.
-
-For example:
-
-```text
-TicketEvent
-     │
-     ├── event_type
-     ├── priority
-     ├── previous_priority
-     ├── new_priority
-     ├── reason
-     ├── status
-     └── timestamp
-             │
-             ▼
-       Notification API
-             │
-             ▼
-        React Dashboard
-```
-
-The frontend periodically refreshes notifications.
-
-This is **periodic polling**, not WebSocket/SSE-based real-time streaming.
-
----
-
-# AI Troubleshooting and RAG
-
-The project includes an AI-assisted troubleshooting system based on Retrieval-Augmented Generation.
-
-The knowledge base currently contains:
-
-```text
-knowledge/
-├── telecom_runbooks.txt
-├── shell_commands.txt
-└── historical_incidents.txt
-```
-
-These files provide three different types of operational knowledge.
-
-## Runbooks
-
-Contain troubleshooting procedures for telecom alarms.
-
-## Shell Commands
-
-Contain diagnostic commands that an operator may use.
-
-## Historical Incidents
-
-Contain previous operational incidents and their resolutions.
-
----
-
-# RAG Pipeline
-
-The current RAG pipeline works approximately as follows:
-
-```text
-Knowledge Base
-     │
-     ▼
-Load Documents
-     │
-     ▼
-Split Documents into Parent Blocks
-     │
-     ▼
-Create Child Chunks
-     │
-     ▼
-Generate Embeddings
-     │
-     ▼
-FAISS Vector Store
-     │
-     ▼
-MMR Retrieval
-     │
-     ▼
-FlagEmbedding Reranker
-     │
-     ▼
-Retrieve Relevant Parent Documents
-     │
-     ▼
-Groq LLM
-     │
-     ▼
+Ticket / Alarm Context
+        |
+        v
+Build Retrieval Query
+        |
+        v
+Metadata-Filtered FAISS MMR Search
+        |
+        v
+Retrieve Child Chunks
+        |
+        v
+Cross-Encoder Reranking
+        |
+        v
+Resolve Parent Documents
+        |
+        v
+Assemble Runbook + Commands + Historical Context
+        |
+        v
+Groq LLM (openai/gpt-oss-20b, temperature 0)
+        |
+        v
 Troubleshooting Recommendation
 ```
 
----
+#### Retrieval Design
 
-# Embeddings
+The supplied `backend/rag.py` implementation documents:
 
-The vector store uses:
+- A SHA-256 fingerprint over selected database knowledge fields.
+- Persistent FAISS index and parent-document storage.
+- Parent blocks separated by a 50-hyphen delimiter.
+- Child chunks created with chunk size `400` and overlap `50`.
+- MMR retrieval followed by BGE cross-encoder reranking.
+- Parent-document resolution using `parent_id`.
+- Alarm-type filtering for historical retrieval.
 
-```text
-BAAI/bge-large-en-v1.5
-```
+The retrieval helper's default `fetch_k` is `20`. The documented parent-result limits are:
 
-through Hugging Face embeddings.
+| Retrieval category | Parent limit |
+|---|---:|
+| Runbooks | 2 |
+| Command references | 2 |
+| Historical troubleshooting | 3 |
+| Historical RCA | 5 |
 
-Embeddings are normalized before being stored in FAISS.
+#### Important Safety Qualification
 
----
+Retrieval grounding does not guarantee that every generated statement is correct.
 
-# Vector Store
+The system should not be described as guaranteeing that the LLM "uses only retrieved commands" or "cannot hallucinate." The model generates text from the prompt and supplied context; it is not a deterministic command validator.
 
-The project uses:
+Treat generated diagnostic guidance as advisory. Operators must verify commands and procedures against approved operational documentation before use.
 
-```text
-FAISS
-```
+The application does not need to execute commands automatically to provide a recommendation. Do not execute generated commands without an explicit, separately implemented and authorized execution workflow.
 
-for vector similarity search.
+### 2. Root Cause Analysis (RCA)
 
-The documents are divided into smaller child chunks using:
+The RCA pipeline is separate from ordinary troubleshooting. It uses historical incident retrieval, the current ticket, any linked resolution record, and related-ticket correlation.
 
-```text
-RecursiveCharacterTextSplitter
-```
+The supplied `backend/rca.py` implementation documents these stages:
 
-with:
+1. Retrieve up to five relevant historical parent documents for the alarm type.
+2. Load the current ticket.
+3. Load the latest linked historical incident, if one exists.
+4. Collect recorded resolution fields.
+5. Identify potentially related tickets on the same node.
+6. Build temporal correlation findings.
+7. Detect missing resolution evidence.
+8. Ask the LLM for a structured RCA response.
+9. Parse and perform the implemented validation checks.
+10. Return the RCA result or an insufficient-evidence fallback.
 
-```text
-chunk_size = 400
-chunk_overlap = 50
-```
+#### Temporal Correlation
 
-Parent documents are retained so that the system can retrieve a relevant child chunk and then return the complete parent context.
+The implementation searches for other tickets:
 
----
+- On the same node.
+- Within 30 minutes before or after the current ticket's creation time.
+- With a different alarm type.
+- Excluding the current ticket.
 
-# Retrieval
+This identifies potentially related events. It does not prove causation.
 
-The system uses Maximum Marginal Relevance (MMR) retrieval to obtain a diverse set of candidate chunks.
-
-The retrieved candidates are then reranked using:
-
-```text
-BAAI/bge-reranker-v2-m3
-```
-
-through `FlagReranker`.
-
-The highest-ranked results are used as context for the LLM.
-
----
-
-# LLM
-
-The troubleshooting assistant uses:
+The correlation finding explicitly records:
 
 ```text
-Groq
+evidenceType = temporal_and_node_correlation
+causationEstablished = false
 ```
 
-through `ChatGroq`.
+#### RCA Output
 
-The configured model is:
+The model is instructed to return these top-level fields:
+
+```json
+{
+  "status": "probable_cause_identified",
+  "probableRootCause": "...",
+  "confidence": "low",
+  "supportingEvidence": [],
+  "alternativeHypotheses": [],
+  "evidenceGaps": [],
+  "recommendedValidation": [],
+  "summary": "..."
+}
+```
+
+Allowed status values:
+
+- `probable_cause_identified`
+- `insufficient_evidence`
+
+Allowed confidence values:
+
+- `low`
+- `medium`
+- `high`
+
+The successful outer RCA response also includes ticket information, recorded resolution, historical incidents, related tickets, and correlation findings.
+
+#### Validation Limitations
+
+The RCA implementation does not perform full JSON Schema validation. It:
+
+- Parses the response with `json.loads`.
+- Requires a dictionary.
+- Checks that required top-level keys exist.
+- Checks the status and confidence values.
+- Requires `probableRootCause` to be null when status is `insufficient_evidence`.
+
+It does not validate all nested item types, reject extra top-level keys, prove evidence grounding, or require a non-null root cause for `probable_cause_identified`.
+
+If evidence is insufficient or the model output is invalid, the implementation can return an insufficient-evidence response with a null probable root cause and low confidence.
+
+#### Eligibility
+
+The RCA module itself should not be described as enforcing a closed-ticket or P1/P2 eligibility rule. Such restrictions, if present, must be confirmed in the API route that calls the RCA function.
+
+### 3. Historical Incident Feedback
+
+The knowledge model supports historical incident records containing information such as:
+
+- Alarm type.
+- Observed symptoms.
+- Root cause.
+- Actions taken.
+- Shell commands and scripts used.
+- Resolution.
+- Verification results.
+- Escalation.
+- Additional notes.
+- Source.
+
+When operator resolution information is stored as a historical incident, it can become available to later retrieval after the vector index is rebuilt or refreshed.
+
+This is retrieval-knowledge enrichment, not model fine-tuning. The LLM's weights are not updated when a ticket is closed.
+
+The exact ticket-close-to-index-refresh call sequence must be checked in the current backend endpoint implementation.
+
+### 4. RAG Evaluation
+
+The evaluation subsystem is implemented in `backend/evaluate.py`.
+
+It uses a separate judge model to score troubleshooting responses.
+
+#### Dataset
+
+The expected dataset path is:
 
 ```text
-openai/gpt-oss-20b
+backend/evaluation_dataset.json
 ```
 
-with:
+Each test case contains:
+
+- `scenario`
+- `question`
+- `ground_truth`
+
+The `scenario` is passed to `troubleshoot_alarm()` and must include its required keyword arguments.
+
+#### Judge Model
 
 ```text
-temperature = 0
+openai/gpt-oss-120b
 ```
 
-The model receives:
+The troubleshooting generator and evaluation judge are different models:
 
-- ticket information
-- retrieved runbook information
-- diagnostic commands
-- historical incidents
+| Role | Model |
+|---|---|
+| Troubleshooting generation | `openai/gpt-oss-20b` |
+| Evaluation judge | `openai/gpt-oss-120b` |
 
-and generates an operational troubleshooting recommendation.
+#### Metrics
 
----
+| Metric | Meaning |
+|---|---|
+| `context_precision` | Relevance of retrieved context |
+| `faithfulness` | Whether the response is supported by retrieved context |
+| `answer_relevancy` | Alignment with the question |
+| `ground_truth_match` | Agreement with expected answer |
 
-# AI Safety Rules
+The judge assigns scores on a 1–5 scale.
 
-The troubleshooting prompt explicitly instructs the model to:
+#### Evaluation Caveats
 
-- use only retrieved commands
-- not invent commands
-- not modify shell commands
-- not automatically execute commands
-- use historical incidents as supporting evidence
-- avoid assuming historical resolutions are always correct
-- explicitly report insufficient knowledge when the knowledge base does not contain enough information
+The implementation has important limitations:
 
-The system therefore provides **operator assistance rather than autonomous command execution**.
+- The scores are LLM judgments, not deterministic measurements.
+- The judge receives at most the first 1,500 characters of retrieved context.
+- Failed or skipped cases are not removed from the total-case denominator.
+- Missing metric values default to zero.
+- Score types and 1–5 ranges are not strictly validated.
+- An empty dataset can cause division by zero.
+- The evaluation record's `model_used` identifies the judge model.
 
----
-
-# Frontend
-
-The frontend is implemented using:
-
-```text
-React
-Vite
-Lucide React
-Custom CSS
-```
-
-The frontend communicates with the FastAPI backend using the browser `fetch()` API.
-
-The Vite development server proxies backend API routes to:
-
-```text
-http://localhost:8001
-```
-
-The configured proxy routes are:
-
-```text
-/auth
-/tickets
-/notifications
-/troubleshoot
-```
-
-This allows the browser to communicate through the frontend origin while the Vite development server forwards API requests to FastAPI.
-
----
-
-# Frontend Features
-
-The dashboard currently contains:
-
-- login
-- registration
-- forgot password
-- password reset
-- dashboard
-- ticket table
-- ticket filtering
-- ticket search
-- ticket details
-- ticket priority changes
-- close ticket
-- reopen ticket
-- notification panel
-- notification acknowledgement
-- AI troubleshooting modal
-- settings
-- dark mode
-- sidebar collapse
-- automatic refresh configuration
-- toast notifications
-
----
-
-# Automatic Refresh
-
-The frontend periodically refreshes:
-
-```text
-Tickets
-Notifications
-```
-
-The refresh interval is configurable in the application and persisted using browser `localStorage`.
-
-The default refresh interval is:
-
-```text
-20 seconds
-```
-
-Automatic refresh can also be disabled from the application settings.
-
----
-
-# API Endpoints
-
-## Authentication
-
-| Method | Endpoint | Purpose |
-|---|---|---|
-| POST | `/auth/register` | Register a new user |
-| POST | `/auth/login` | Authenticate a user |
-| POST | `/auth/logout` | Logout and revoke the session |
-| GET | `/auth/me` | Return the currently authenticated user |
-| POST | `/auth/forgot-password` | Generate a password reset request |
-| POST | `/auth/reset-password` | Reset a password |
+Evaluation scores are useful for monitoring and comparison, but they should not be presented as a formal guarantee of correctness.
 
 ---
 
-## Tickets
+## 🗄️ Database Overview
 
-| Method | Endpoint | Purpose |
-|---|---|---|
-| GET | `/` | Backend root endpoint |
-| GET | `/tickets` | Retrieve tickets |
-| PUT | `/tickets/{ticket_number}/priority` | Change ticket priority |
-| PUT | `/tickets/{ticket_number}/close` | Close a ticket |
-| PUT | `/tickets/{ticket_number}/reopen` | Reopen a ticket |
-| PUT | `/tickets/{ticket_number}/acknowledge` | Acknowledge the latest ticket event |
+The documented database contains ten tables grouped by responsibility.
+
+### Operational Tables
+
+| Table | Purpose |
+|---|---|
+| `teams` | Team information |
+| `tickets` | Current ticket records |
+| `ticket_events` | Ticket-related event history |
+
+### Authentication Tables
+
+| Table | Purpose |
+|---|---|
+| `users` | User accounts and roles |
+| `refresh_tokens` | Persisted refresh-token state |
+| `password_reset_tokens` | Password-reset state |
+| `auth_rate_limits` | Authentication rate-limiting state |
+
+### Knowledge and Evaluation Tables
+
+| Table | Purpose |
+|---|---|
+| `knowledge_documents` | Runbook and command-reference documents |
+| `historical_incidents` | Historical incident and resolution information |
+| `rag_evaluations` | Evaluation metrics and detailed results |
+
+The current SQLAlchemy models and actual database schema are authoritative if they differ from this overview.
+
+### Important Relationships
+
+The documented logical relationships include:
+
+```text
+Team 1 -------- * Ticket
+Ticket 1 ------ * TicketEvent
+Ticket 1 ------ * HistoricalIncident (optional link)
+
+User 1 -------- * RefreshToken
+User 1 -------- * PasswordResetToken
+```
+
+Actual foreign-key constraints and cascade behavior must be checked in `backend/models.py`.
 
 ---
 
-## Notifications
+## 📁 Project Structure
 
-| Method | Endpoint | Purpose |
-|---|---|---|
-| GET | `/notifications` | Retrieve ticket-event notifications |
-
----
-
-## AI Troubleshooting
-
-| Method | Endpoint | Purpose |
-|---|---|---|
-| GET | `/troubleshoot/{ticket_number}` | Generate AI troubleshooting guidance for a ticket |
-
----
-
-# Project Structure
-
-The repository is organized into the Java processing layer, backend, frontend, knowledge base, database/migration utilities, and generated runtime files.
+The following is a high-level structure based on the documented repository layout. Confirm filenames and folders against the current checkout.
 
 ```text
 Alarm_automation/
@@ -1104,962 +813,229 @@ Alarm_automation/
 │   ├── database.py
 │   ├── models.py
 │   ├── rag.py
-│   ├── migrate_json_to_db.py
-│   ├── create_tables.py
-│   ├── csv_watcher.py
+│   ├── rca.py
 │   ├── evaluate.py
-│   └── test_db.py
+│   ├── migrate_json_to_db.py
+│   └── create_tables.py
 │
 ├── frontend/
-│   ├── index.html
-│   ├── package.json
-│   ├── package-lock.json
-│   ├── vite.config.js
-│   │
-│   └── src/
-│       ├── App.jsx
-│       ├── main.jsx
-│       │
-│       ├── api/
-│       │   └── api.js
-│       │
-│       ├── components/
-│       │   ├── ColumnFilter.jsx
-│       │   ├── ForgotPassword.jsx
-│       │   ├── Login.jsx
-│       │   ├── Notifications.jsx
-│       │   ├── Register.jsx
-│       │   ├── ResetPassword.jsx
-│       │   ├── RowActionsMenu.jsx
-│       │   ├── Settings.jsx
-│       │   ├── Sidebar.jsx
-│       │   ├── SummaryCards.jsx
-│       │   ├── TicketRow.jsx
-│       │   ├── TicketTable.jsx
-│       │   ├── ToastHost.jsx
-│       │   └── Topbar.jsx
-│       │
-│       ├── modals/
-│       │   ├── CloseTicketModal.jsx
-│       │   ├── ConfirmReopenModal.jsx
-│       │   ├── LogoutConfirmModal.jsx
-│       │   ├── MessageModal.jsx
-│       │   ├── ReopenTicketModal.jsx
-│       │   ├── TicketDetailsModal.jsx
-│       │   ├── TroubleshootModal.jsx
-│       │   └── UpgradeModal.jsx
-│       │
-│       ├── hooks/
-│       │   └── useModalA11y.js
-│       │
-│       ├── utils/
-│       │   └── priorityHistory.js
-│       │
-│       ├── assets/
-│       │   └── ericsson-logo.*
-│       │
-│       └── styles/
-│           └── style.css
+│   ├── src/
+│   │   ├── App.jsx
+│   │   ├── api/
+│   │   │   └── api.js
+│   │   ├── components/
+│   │   └── modals/
+│   └── package.json
 │
-├── src/
+├── src/                         # Java processing
 │   ├── Main.java
-│   │
-│   ├── file/
-│   │   ├── alarmFileReader.java
-│   │   ├── notificationJsonWriter.java
-│   │   └── ticketJsonWriter.java
-│   │
 │   ├── model/
-│   │   ├── alarm.java
-│   │   ├── alarmGroup.java
-│   │   ├── impactResult.java
-│   │   ├── priorityResult.java
-│   │   ├── ticket.java
-│   │   └── ticketDraft.java
-│   │
-│   └── processing/
-│       ├── alarmGrouper.java
-│       ├── impactAnalyzer.java
-│       ├── notificationGenerator.java
-│       ├── priorityCalculator.java
-│       ├── ticketCreator.java
-│       └── ticketDraftGenerator.java
+│   ├── processing/
+│   └── file/
 │
 ├── data/
-│   └── alarm.csv
+│   ├── alarm.csv
+│   └── faiss_index/             # Persistent vector-store files
 │
-├── knowledge/
-│   ├── historical_incidents.txt
+├── knowledge/                   # Legacy migration inputs
+│   ├── telecom_runbooks.txt
 │   ├── shell_commands.txt
-│   └── telecom_runbooks.txt
+│   └── historical_incidents.txt
 │
-├── output/
+├── output/                      # Intermediate Java output
 │   ├── tickets.json
-│   ├── notifications.json
-│   └── ticket_drafts.json
+│   └── notifications.json
 │
-├── lib/
-│   └── gson-2.10.1.jar
-│
-├── out/
-│   └── compiled Java classes
-│
-└── requirements.txt
+├── migrate_knowledge.py
+├── requirements.txt
+└── README.md
 ```
 
-> `node_modules/` and compiled runtime artifacts are shown only to explain the current project layout. They generally should not be committed to source control.
+### FAISS Persistence
 
----
-
-# Technology Stack
-
-## Java Processing Layer
-
-- Java
-- Gson 2.10.1
-- CSV-based input
-- Object-oriented alarm processing
-
-## Backend
-
-- Python
-- FastAPI
-- Uvicorn
-- SQLAlchemy
-- PostgreSQL
-- Pydantic
-- python-dotenv
-- pwdlib
-- Argon2-compatible password hashing
-
-## RAG / AI
-
-- LangChain
-- LangChain Community
-- LangChain Hugging Face
-- LangChain Groq
-- Hugging Face embeddings
-- FAISS
-- FlagEmbedding
-- BGE embeddings
-- BGE reranker
-- Groq
-
-## Frontend
-
-- React
-- React DOM
-- Vite
-- `@vitejs/plugin-react`
-- Lucide React
-- Custom CSS
-- Fetch API
-
----
-
-# Installation
-
-## Prerequisites
-
-Install the following before running the project:
-
-### Java
-
-Java JDK with `javac` and `java` available in the terminal.
-
-Verify:
-
-```powershell
-java -version
-javac -version
-```
-
----
-
-### Python
-
-Python 3.10+ is recommended.
-
-Verify:
-
-```powershell
-python --version
-```
-
----
-
-### Node.js and npm
-
-Install Node.js and npm.
-
-Verify:
-
-```powershell
-node --version
-npm --version
-```
-
-The current frontend dependency lockfile uses Vite 8 and requires a modern Node.js version.
-
----
-
-### PostgreSQL
-
-Install PostgreSQL and create a database for the application.
-
----
-
-# Configuration
-
-Create a `.env` file for the backend.
-
-Example:
-
-```env
-DATABASE_URL=postgresql://username:password@localhost:5432/alarm_automation
-
-GROQ_API_KEY=your_groq_api_key
-
-AUTH_COOKIE_SECURE=false
-```
-
-Replace the database credentials and API key with your own values.
-
-## Important
-
-Do not commit:
+The RAG implementation uses a persistent index directory. The previously documented directory is:
 
 ```text
-.env
+data/faiss_index/
 ```
 
-to the repository.
-
-Do not expose:
+The documented files are:
 
 ```text
-GROQ_API_KEY
-DATABASE_URL
-database passwords
+data/faiss_index/
+├── index.faiss
+├── index.pkl
+├── parent_store.pkl
+└── fingerprint.json
 ```
 
-in source control.
+Confirm the actual path against `FAISS_INDEX_DIR` in the current `backend/rag.py`. The index is derived data and should be recoverable from the underlying knowledge records.
 
 ---
 
-# Database Setup
+## 🔒 Security Notes
 
-After PostgreSQL is running and `DATABASE_URL` is configured, create the application tables:
+The documented security design includes:
 
-```powershell
-python -m backend.create_tables
-```
+- JWT access and refresh tokens.
+- HTTP-only cookies.
+- Argon2 password hashing.
+- Refresh-token persistence and revocation.
+- Authentication rate-limiting support.
+- Dummy password-hash verification for unknown users.
+- Last-admin protection for role changes.
+- CORS origin configuration.
 
-The database schema is created from the SQLAlchemy models.
+Security qualifications:
 
-The tables include:
-
-```text
-teams
-tickets
-ticket_events
-users
-user_sessions
-password_reset_tokens
-auth_rate_limits
-```
-
----
-
-# Java Dependencies
-
-The Java application currently uses:
-
-```text
-lib/gson-2.10.1.jar
-```
-
-The Gson JAR is already included in the repository.
+- JWT access tokens do not make the entire authentication system stateless when refresh-token state is stored in PostgreSQL.
+- HTTP-only cookies reduce JavaScript access to cookie values but do not, by themselves, prevent every CSRF scenario.
+- CORS is not a substitute for authentication or authorization.
+- Frontend role-based navigation is not a substitute for backend access control.
+- Production deployments require secure secret handling, HTTPS, and appropriate cookie settings.
 
 ---
 
-# Running the Project
+## 🧪 Testing and Verification
 
-The project has three primary runtime components:
+The following are practical manual test areas. They are test suggestions, not a claim that automated tests currently cover every case.
 
-```text
-1. Java alarm processor
-2. FastAPI backend
-3. React frontend
-```
+### 1. Authentication
 
-The JSON-to-database migration is a separate step between the Java processing stage and the backend database stage.
+- Register a user.
+- Log in and inspect cookie behavior.
+- Call a protected endpoint.
+- Test access-token expiry and refresh behavior.
+- Log out and verify refresh-token revocation.
+- Test password-reset behavior.
+- Verify that non-admin users cannot call admin-only endpoints.
 
-A typical development setup uses separate terminals.
+### 2. Ticket Lifecycle
 
----
+- Import generated ticket data.
+- Retrieve tickets through the API.
+- Change ticket priority.
+- Close a ticket with and without resolution details, where supported.
+- Reopen a ticket.
+- Verify the corresponding event records.
+- Verify notification behavior.
 
-# Running the Java Pipeline
+### 3. RAG Troubleshooting
 
-From the project root, compile the Java source:
+- Test multiple alarm types.
+- Confirm that alarm-specific retrieval filters are applied.
+- Confirm runbook and command fallback behavior.
+- Inspect retrieved parent documents.
+- Verify the recommendation against the actual retrieved context.
+- Test the no-knowledge-found path.
+- Confirm that no generated command is executed automatically.
 
-```powershell
-javac -d out -cp "lib\*" .\src\model\*.java .\src\processing\*.java .\src\file\*.java .\src\Main.java
-```
+### 4. RCA
 
-Then run:
+- Test a ticket with a linked historical incident.
+- Test a ticket without a linked historical incident.
+- Test missing ticket timestamp behavior.
+- Inspect same-node, different-alarm correlation results.
+- Test insufficient historical evidence.
+- Test malformed or invalid LLM JSON.
+- Confirm that correlation is not represented as proven causation.
 
-```powershell
-java -cp "out;lib\*" Main
-```
+### 5. RAG Evaluation
 
-The Java pipeline reads:
+- Confirm `backend/evaluation_dataset.json` exists.
+- Run evaluation with valid cases.
+- Test malformed judge output.
+- Inspect skipped-case behavior and aggregate denominator.
+- Verify that evaluation records are persisted.
+- Retrieve evaluation history.
 
-```text
-data/alarm.csv
-```
+### 6. Admin Features
 
-and generates:
-
-```text
-output/tickets.json
-output/notifications.json
-```
-
----
-
-# Running the Backend
-
-From the project root:
-
-```powershell
-uvicorn backend.main:app --port 8001 --reload
-```
-
-The backend will be available at:
-
-```text
-http://127.0.0.1:8001
-```
-
-FastAPI's interactive API documentation is available at:
-
-```text
-http://127.0.0.1:8001/docs
-```
+- Access admin pages as an admin.
+- Attempt admin API calls as a regular user.
+- Change user roles.
+- Verify last-admin protection.
+- Run evaluation and inspect saved results.
 
 ---
 
-# Running the Frontend
+## 🚧 Current Limitations
 
-Move into the frontend directory:
+The following limitations are documented or follow directly from the described architecture. Confirm each one against the current checkout before treating it as an exhaustive list.
 
-```powershell
-cd frontend
-```
-
-Install dependencies:
-
-```powershell
-npm install
-```
-
-Start the Vite development server:
-
-```powershell
-npm run dev
-```
-
-The frontend normally runs at:
-
-```text
-http://localhost:5173
-```
-
-The Vite configuration forwards the backend API routes to:
-
-```text
-http://localhost:8001
-```
+1. **File-based Java handoff:** Java generates JSON, and Python migration imports it; there is no direct Java-to-PostgreSQL integration in this documented flow.
+2. **RAG generation is probabilistic:** Retrieved context does not guarantee that every generated statement is correct.
+3. **RCA correlation is narrow:** The documented correlation logic is limited to the same node and a fixed 30-minute window.
+4. **Correlation is not causation:** Temporal proximity alone cannot prove a causal relationship.
+5. **RCA validation is partial:** The implementation does not enforce a complete nested JSON schema or programmatic evidence grounding.
+6. **Evaluation is judge-dependent:** LLM scores are not deterministic.
+7. **Evaluation denominator behavior:** Failed/skipped cases still affect the total-case denominator.
+8. **Evaluation score validation:** Metric types and ranges are not strictly validated.
+9. **Index consistency depends on refresh/rebuild:** A database update and a vector-index update are separate operations.
+10. **Environment-specific configuration:** Local ports, paths, and external URLs must be configured for each deployment.
+11. **Operational data is simulated:** This prototype is not connected to a production telecom network.
 
 ---
 
-# Frontend Proxy
+## 🔮 Possible Future Improvements
 
-The Vite development configuration proxies:
+These are suggestions, not currently implemented features:
 
-```text
-/auth
-/tickets
-/notifications
-/troubleshoot
-```
-
-to:
-
-```text
-http://localhost:8001
-```
-
-The frontend therefore uses relative API URLs such as:
-
-```text
-/auth/login
-/tickets
-/notifications
-/troubleshoot/AL-10001
-```
-
-instead of hardcoding the backend address in every API request.
+- [ ] Direct Java-to-database integration, if the file handoff becomes a bottleneck.
+- [ ] WebSocket or Server-Sent Events for push-based updates.
+- [ ] Email delivery for password-reset links.
+- [ ] External notification integrations.
+- [ ] Configurable RCA correlation windows.
+- [ ] Cross-node correlation where supported by reliable topology data.
+- [ ] Stronger RCA output validation using a formal schema.
+- [ ] Evidence provenance checks for model-generated RCA claims.
+- [ ] Evaluation handling that separates successful cases from failed cases.
+- [ ] Strict evaluation score type and range validation.
+- [ ] Repeated evaluation runs and confidence/variance reporting.
+- [ ] Automated tests for migration idempotency and index refresh.
+- [ ] Production deployment guide using containers and a reverse proxy.
+- [ ] Centralized logs, metrics, and database/index backup procedures.
 
 ---
 
-# Database Migration
+## 📚 Documentation
 
-After running the Java pipeline, the generated JSON files can be migrated into PostgreSQL.
+The repository's documentation directory may contain detailed references such as:
 
-Run:
-
-```powershell
-python -m backend.migrate_json_to_db
-```
-
-The migration script reads:
-
-```text
-output/tickets.json
-output/notifications.json
-```
-
-and writes the corresponding records into PostgreSQL.
-
-The migration creates:
-
-- teams
-- tickets
-- ticket events
-
-It also checks existing records to avoid creating duplicate tickets/events unnecessarily.
+- **API Documentation** — API routes, request and response formats.
+- **Authentication Documentation** — JWT flow, refresh tokens, and RBAC.
+- **Database Documentation** — schema and relationships.
+- **System Architecture** — high-level component architecture.
+- **RAG Documentation** — retrieval, embeddings, reranking, and generation.
+- **Frontend Documentation** — React structure and UI behavior.
+- **Code Flow** — execution and data-flow diagrams.
 
 ---
 
-# Recommended Development Sequence
+## ⚠️ Disclaimer
 
-For the current implementation, the safest startup sequence is:
-
-## 1. Start PostgreSQL
-
-Make sure PostgreSQL is running.
+This project is a **personal/educational prototype**. Alarm data, thresholds, team mappings, runbooks, diagnostic commands, ticketing workflows, and notification behavior are simulated for demonstration purposes.
 
 ---
 
-## 2. Configure `.env`
+## 📧 Contact
 
-Set:
-
-```env
-DATABASE_URL=...
-GROQ_API_KEY=...
-AUTH_COOKIE_SECURE=false
-```
-
-for local development.
+Project maintainer and contact details should be maintained by the repository owner. Avoid publishing personal contact information unless it is intentionally provided for public use.
 
 ---
 
-## 3. Create database tables
+## 🙏 Acknowledgments
+
+The project uses and builds upon tools and libraries including:
+
+- FastAPI.
+- SQLAlchemy.
+- PostgreSQL.
+- LangChain.
+- Hugging Face.
+- FAISS.
+- Groq.
+- React.
+- Vite.
+- Gson.
 
-```powershell
-python -m backend.create_tables
-```
-
----
-
-## 4. Run Java processing
-
-```powershell
-javac -d out -cp "lib\*" .\src\model\*.java .\src\processing\*.java .\src\file\*.java .\src\Main.java
-
-java -cp "out;lib\*" Main
-```
-
----
-
-## 5. Migrate generated JSON
-
-```powershell
-python -m backend.migrate_json_to_db
-```
-
----
-
-## 6. Start FastAPI
-
-```powershell
-uvicorn backend.main:app --port 8001 --reload
-```
-
----
-
-## 7. Start React
-
-In another terminal:
-
-```powershell
-cd frontend
-npm install
-npm run dev
-```
-
----
-
-## 8. Open the dashboard
-
-```text
-http://localhost:5173
-```
-
----
-
-# Automatic CSV Monitoring
-
-The project also contains:
-
-```text
-backend/csv_watcher.py
-```
-
-The watcher monitors:
-
-```text
-data/alarm.csv
-```
-
-for modifications.
-
-When the CSV changes, it runs the compiled Java pipeline:
-
-```text
-CSV changed
-    │
-    ▼
-csv_watcher.py
-    │
-    ▼
-java -cp out + Gson Main
-    │
-    ▼
-output/tickets.json
-output/notifications.json
-```
-
-The watcher does **not** automatically perform the JSON → PostgreSQL migration.
-
-Therefore, after the Java pipeline updates the JSON files, the migration step is still required if the new data needs to appear in PostgreSQL.
-
----
-
-# Example Workflow
-
-Suppose the CSV contains repeated alarms:
-
-```text
-NODE-101,HIGH_CPU,...
-NODE-101,HIGH_CPU,...
-NODE-101,HIGH_CPU,...
-```
-
-The system processes them as follows:
-
-```text
-1. Read alarms
-       ↓
-2. Group by NODE-101 + HIGH_CPU
-       ↓
-3. Calculate occurrence count
-       ↓
-4. Analyze impact
-       ↓
-5. Calculate priority
-       ↓
-6. Generate P4 ticket draft
-       ↓
-7. Assign Platform team
-       ↓
-8. Create AL-xxxxx ticket
-       ↓
-9. Generate notification
-       ↓
-10. Write tickets.json
-       ↓
-11. Write notifications.json
-       ↓
-12. Run migration
-       ↓
-13. Store ticket and event in PostgreSQL
-       ↓
-14. FastAPI exposes ticket to React
-       ↓
-15. Operator views ticket
-       ↓
-16. Operator can acknowledge, reprioritize,
-    close, reopen, or troubleshoot
-```
-
----
-
-# Human-in-the-Loop Design
-
-The project intentionally does not make the AI or alarm-processing pipeline fully autonomous.
-
-The Java pipeline automatically performs deterministic processing:
-
-```text
-Alarm
-  ↓
-Grouping
-  ↓
-Impact Analysis
-  ↓
-Priority Calculation
-  ↓
-P4 Ticket Creation
-```
-
-The initial priority is deliberately P4.
-
-A human operator can then decide whether the ticket should be:
-
-```text
-P4 → P3
-P4 → P2
-P4 → P1
-```
-
-or downgraded/closed according to the operational situation.
-
-Similarly, the AI troubleshooting system provides recommendations but does not:
-
-- execute shell commands
-- automatically close tickets
-- automatically reopen tickets
-- automatically change ticket priority
-
-This creates a human-in-the-loop operational model.
-
----
-
-# Current Limitations
-
-The following limitations reflect the current implementation.
-
-## 1. Java and PostgreSQL are not directly connected
-
-The Java pipeline currently writes:
-
-```text
-tickets.json
-notifications.json
-```
-
-The database is populated separately using:
-
-```text
-migrate_json_to_db.py
-```
-
-There is currently no direct Java → PostgreSQL persistence layer.
-
----
-
-## 2. Priority calculation initially creates only P4 tickets
-
-The Java priority calculator currently returns:
-
-```text
-P4
-```
-
-for all automatically created tickets.
-
-Priority escalation is performed later by the operator through the FastAPI/React application.
-
----
-
-## 3. CSV monitoring does not automatically migrate data
-
-`csv_watcher.py` triggers the Java pipeline when the CSV changes, but it does not automatically call the database migration script.
-
----
-
-## 4. Notification delivery is application-based
-
-Notifications are generated and displayed through the dashboard.
-
-The system does not currently implement an external notification delivery service such as:
-
-- email
-- SMS
-- PagerDuty
-- Slack
-- Microsoft Teams
-
----
-
-## 5. Frontend updates use periodic polling
-
-Tickets and notifications are refreshed at configurable intervals.
-
-The current frontend does not use:
-
-```text
-WebSockets
-Server-Sent Events
-```
-
-for live event streaming.
-
----
-
-## 6. AI troubleshooting depends on the knowledge base
-
-The AI assistant is intentionally constrained by the retrieved knowledge.
-
-If sufficient information cannot be retrieved, it is instructed to report insufficient knowledge rather than invent operational procedures.
-
----
-
-## 7. Password reset is development-oriented
-
-The current password-reset implementation prints the generated reset URL in the backend console rather than sending it through an external email service.
-
----
-
-## 8. Local authentication configuration
-
-The authentication cookie has a configurable Secure flag.
-
-For local HTTP development, the environment may need:
-
-```env
-AUTH_COOKIE_SECURE=false
-```
-
-For HTTPS deployments, the Secure setting should be configured appropriately.
-
----
-
-# Future Improvements
-
-Potential future improvements include:
-
-## Direct Database Persistence
-
-Replace the current:
-
-```text
-Java → JSON → Migration → PostgreSQL
-```
-
-workflow with:
-
-```text
-Java → PostgreSQL
-```
-
-or introduce a dedicated ingestion service.
-
----
-
-## Automated JSON-to-Database Synchronization
-
-If JSON remains part of the architecture, the CSV watcher could automatically trigger:
-
-```text
-Java pipeline
-     ↓
-JSON generation
-     ↓
-Database migration
-```
-
-instead of requiring the migration command separately.
-
----
-
-## More Advanced Priority Automation
-
-The priority engine could eventually calculate:
-
-```text
-P1
-P2
-P3
-P4
-```
-
-directly from operational impact, SLA requirements, customer impact, and network criticality.
-
----
-
-## Role-Based Access Control
-
-Introduce different permissions for roles such as:
-
-```text
-Operator
-Supervisor
-Administrator
-```
-
----
-
-## Real-Time Notifications
-
-Replace periodic polling with:
-
-```text
-WebSockets
-```
-
-or:
-
-```text
-Server-Sent Events
-```
-
-for real-time ticket and notification updates.
-
----
-
-## External Notification Integrations
-
-Integrate with operational communication systems such as:
-
-```text
-Email
-Slack
-Microsoft Teams
-PagerDuty
-```
-
----
-
-## Better Audit History
-
-Expand the existing ticket-event system into a dedicated audit/history interface showing:
-
-- who performed an action
-- previous state
-- new state
-- timestamp
-- reason
-- ticket history
-
----
-
-## Production Deployment
-
-A production deployment could include:
-
-```text
-Reverse Proxy
-     ↓
-React Frontend
-     ↓
-FastAPI
-     ↓
-PostgreSQL
-```
-
-with:
-
-- HTTPS
-- secure cookies
-- environment-based configuration
-- database migrations
-- centralized logging
-- monitoring
-- backup and recovery
-
----
-
-# Design Decisions
-
-## Deterministic Processing Before AI
-
-The initial alarm processing is implemented using deterministic Java logic rather than an LLM.
-
-This makes:
-
-- grouping predictable
-- impact calculation explainable
-- initial priority behavior reproducible
-- ticket creation deterministic
-
-AI is used primarily for troubleshooting assistance.
-
----
-
-## Human Review Before Escalation
-
-Automatically generated tickets start at P4 and are intended for human review.
-
-This avoids allowing an automated system to make uncontrolled high-impact operational decisions.
-
----
-
-## Event-Based Ticket History
-
-Instead of storing notifications as an independent operational state, ticket activity is represented using `TicketEvent` records.
-
-This provides a historical record of actions such as:
-
-```text
-Ticket Created
-Priority Upgraded
-Priority Downgraded
-Ticket Closed
-Ticket Reopened
-```
-
-The notification API derives dashboard notifications from these events.
-
----
-
-## Retrieval Before Generation
-
-The troubleshooting assistant retrieves relevant operational information before asking the LLM to generate a response.
-
-The RAG pipeline uses:
-
-```text
-Runbooks
-Commands
-Historical Incidents
-        ↓
-Embeddings
-        ↓
-FAISS
-
-Hugging Face sentence transformers
-
-Groq LLM integration
-
-Environment variables
-
-Human-in-the-loop automation
-
-Telecom alarm and incident workflow concepts
-
-20. Disclaimer
-
-This project is a personal/educational prototype.
-
-The alarm data, thresholds, team mappings, runbooks, diagnostic
-commands, ticketing workflow, and notification behavior are simulated
-for demonstration purposes. They should not be interpreted as Ericsson
-production architecture, Ericsson internal procedures, or approved
-network operational instructions.#   A l a r m _ a u t o m a t i o n 
- 
- 

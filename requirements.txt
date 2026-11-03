@@ -1,16 +1,31 @@
-langchain
-langchain-core
-langchain-huggingface
-transformers
-huggingface-hub
-python-dotenv
-numpy
-scikit-learn
-torch
-langchain-community 
-chromadb 
-sentence-transformers
+# Web Framework & API
 fastapi
 uvicorn
-FlagEmbedding
+pydantic
+
+# Database
+sqlalchemy
+psycopg2-binary
+
+# Authentication & Security
+PyJWT
 pwdlib[argon2]
+
+# LangChain & AI/ML
+langchain
+langchain-core
+langchain-community
+langchain-huggingface
+langchain-text-splitters
+langchain-groq
+
+# Vector Store & Embeddings
+faiss-cpu
+sentence-transformers
+transformers
+huggingface-hub
+torch
+FlagEmbedding
+
+# Utilities
+python-dotenv
