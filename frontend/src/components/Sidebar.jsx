@@ -1,4 +1,4 @@
-import { Bell, X, Menu , LayoutDashboard, Settings, Activity, ChartNoAxesCombined, Users} from "lucide-react";
+import { Bell, X, Menu , LayoutDashboard, Settings, Activity, ChartNoAxesCombined, Users, BrainCircuit} from "lucide-react";
 
 function Sidebar({ backendOnline, collapsed, onToggle, notificationCount, activePage, onNavigate, userRole }) {
     return (
@@ -50,6 +50,15 @@ function Sidebar({ backendOnline, collapsed, onToggle, notificationCount, active
                         <span className="nav-badge">
                             {notificationCount}
                         </span>
+                    </a>
+
+                    <a
+                        className={`nav-item ${activePage === "ai-rca" ? "active" : ""}`}
+                        href="#/ai-rca"
+                        onClick={() => onNavigate("ai-rca")}
+                    >
+                        <BrainCircuit size={18} />
+                        <span>AI RCA</span>
                     </a>
 
                     {userRole === "admin" && (

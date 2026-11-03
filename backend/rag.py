@@ -115,6 +115,7 @@ def _compute_fingerprint(db):
     index is still valid.
     """
     hasher = hashlib.sha256()
+    hasher.update(b"historical_alarm_type_filter_v2")
 
     knowledge_records = (
         db.query(KnowledgeDocument).order_by(KnowledgeDocument.id).all()
@@ -257,46 +258,49 @@ def _build_vector_store():
 
         historical_documents = []
         for record in incident_records:
-            # Prefer the alarm_type stored in PostgreSQL; fall back to regex
-            # detection only when the DB column is empty / None.
+            # Prefer the alarm_type stored in PostgreSQL.
+            # Detect it from the incident content only if it is empty.
             alarm_type = (record.alarm_type or "").strip()
+
             if not alarm_type:
                 alarm_type = detect_alarm_type(
                     f"{record.observed_symptoms or ''} "
+                    f"{record.root_cause or ''}"
                     f"{record.actions_taken or ''} "
                     f"{record.resolution or ''}"
                 )
 
 
-        content = (
-            f"HISTORICAL INCIDENT: {record.id}\n\n"
-            f"ALARM_TYPE: {alarm_type}\n\n"
-            f"OBSERVED_SYMPTOMS:\n"
-            f"{record.observed_symptoms or ''}\n\n"
-            f"ROOT_CAUSE:\n"
-            f"{record.root_cause or ''}\n\n"
-            f"ACTIONS_TAKEN:\n"
-            f"{record.actions_taken or ''}\n\n"
-            f"SHELL_COMMANDS_USED:\n"
-            f"{record.shell_commands_used or ''}\n\n"
-            f"SHELL_SCRIPT_USED:\n"
-            f"{record.shell_script_used or ''}\n\n"
-            f"RESOLUTION:\n"
-            f"{record.resolution or ''}\n\n"
-            f"VERIFICATION_RESULTS:\n"
-            f"{record.verification_results or ''}\n\n"
-            f"ESCALATION:\n"
-            f"{record.escalation or ''}\n\n"
-            f"ADDITIONAL_NOTES:\n"
-            f"{record.additional_notes or ''}"
-        )
+            content = (
+                f"HISTORICAL INCIDENT: {record.id}\n\n"
+                f"ALARM_TYPE: {alarm_type}\n\n"
+                f"OBSERVED_SYMPTOMS:\n"
+                f"{record.observed_symptoms or ''}\n\n"
+                f"ROOT_CAUSE:\n"
+                f"{record.root_cause or ''}\n\n"
+                f"ACTIONS_TAKEN:\n"
+                f"{record.actions_taken or ''}\n\n"
+                f"SHELL_COMMANDS_USED:\n"
+                f"{record.shell_commands_used or ''}\n\n"
+                f"SHELL_SCRIPT_USED:\n"
+                f"{record.shell_script_used or ''}\n\n"
+                f"RESOLUTION:\n"
+                f"{record.resolution or ''}\n\n"
+                f"VERIFICATION_RESULTS:\n"
+                f"{record.verification_results or ''}\n\n"
+                f"ESCALATION:\n"
+                f"{record.escalation or ''}\n\n"
+                f"ADDITIONAL_NOTES:\n"
+                f"{record.additional_notes or ''}"
+            )
 
-        historical_documents.append(
+            historical_documents.append(
                 Document(
                     page_content=content,
                     metadata={
                         "source_type": "historical",
                         "alarm_type": alarm_type,
+                        "incident_id": record.id,
                     },
                 )
             )
@@ -445,67 +449,44 @@ def _search_and_fetch_parents(
 # Public entry point
 # ---------------------------------------------------------------------------
 
-def _get_latest_historical_incidents(alarm_type):
-    """Return the latest matching incident matching the alarm type.
-    Newest last. Falls back to all incidents if none match the alarm type.
+def _get_relevant_historical_incidents(
+        query,
+        alarm_type,
+        k=3,
+):
     """
-    db= SessionLocal()
+    Retrieve historical incidents relevant to the current ticket.
 
-    try:
-        records=(
-            db.query(HistoricalIncident)
-            .filter(HistoricalIncident.alarm_type == alarm_type)
-            .order_by(HistoricalIncident.id.asc())
-            .all()
-        )
+    Uses the existing FAISS index for candidate retrieval and the existing
+    BGE reranker to rank the historical incident documents.
+    """
 
-        if not records:
-            records = (
-                db.query(HistoricalIncident)
-                .order_by(HistoricalIncident.id.asc())
-                .all()
-            )
+    pipeline = _build_vector_store()
+    vectorstore = pipeline["vectorstore"]
+    parent_store = pipeline["parent_store"]
 
-        incidents = []
+    # First search: historical incidents matching the alarm type.
+    results = _search_and_fetch_parents(
+        vectorstore=vectorstore,
+        parent_store=parent_store,
+        query=query,
+        k=k,
+        filter_dict={
+            "source_type": "historical",
+            "alarm_type": alarm_type,
+        },
+        fetch_k=20,
+    )
 
-        for record in records:
-            content = (
-                f"HISTORICAL INCIDENT: {record.id}\n\n"
-                f"ALARM_TYPE: {record.alarm_type}\n\n"
-                f"OBSERVED_SYMPTOMS:\n"
-                f"{record.observed_symptoms or ''}\n\n"
-                f"ROOT_CAUSE:\n"
-                f"{record.root_cause or ''}\n\n"
-                f"ACTIONS_TAKEN:\n"
-                f"{record.actions_taken or ''}\n\n"
-                f"SHELL_COMMANDS_USED:\n"
-                f"{record.shell_commands_used or ''}\n\n"
-                f"SHELL_SCRIPT_USED:\n"
-                f"{record.shell_script_used or ''}\n\n"
-                f"RESOLUTION:\n"
-                f"{record.resolution or ''}\n\n"
-                f"VERIFICATION_RESULTS:\n"
-                f"{record.verification_results or ''}\n\n"
-                f"ESCALATION:\n"
-                f"{record.escalation or ''}\n\n"
-                f"ADDITIONAL_NOTES:\n"
-                f"{record.additional_notes or ''}"
-            )
+    #enforce the alarm-type match on the returned parent documents too.
+    matching_results = [
+        result
+        for result in results
+        if result.metadata.get("source_type") == "historical"
+        and result.metadata.get("alarm_type") == alarm_type.strip()
+    ]
 
-            incidents.append(
-                Document(
-                    page_content=content,
-                    metadata={
-                        "source_type": "historical",
-                        "alarm_type": record.alarm_type,
-                        "incident_id": record.id,
-                    },
-                )
-            )
-        return incidents
-
-    finally:
-        db.close()
+    return matching_results
 
 
 def troubleshoot_alarm(
@@ -560,9 +541,22 @@ def troubleshoot_alarm(
             filter_dict={"source_type": "commands"},
         )
 
-    #---Historical incidents: retrieve the latest two from PostgreSQL. ---
-    historical_results = _get_latest_historical_incidents(
-        alarm_type
+    # --- Historical incidents: retrieve by technical relevance. ---
+    historical_query = (
+        f"Alarm type: {alarm_type.strip()}. "
+        "Find historical incidents for this alarm type. "
+        "Prioritize technical relevance based on observed symptoms, "
+        "root causes, troubleshooting actions, diagnostic commands, "
+        "resolutions, verification results, and escalation conditions. "
+        "Do not prioritize incidents merely because their ticket metadata "
+        "such as node, user count, severity, threshold status, impact level, "
+        "priority, or assigned team is similar."
+    )
+
+    historical_results = _get_relevant_historical_incidents(
+        query=historical_query,
+        alarm_type=alarm_type,
+        k=3,
     )
 
     runbook_context = "\n\n".join(r.page_content for r in runbook_results)
@@ -637,6 +631,11 @@ STRICT KNOWLEDGE RULES:
 - Use the current ticket information together with the runbook and historical incident information.
 - If a historical incident contains a shell command, only recommend it if it is relevant to the current alarm.
 - Do not fill gaps with general knowledge.
+- Explicitly identify important missing information in the retrieved knowledge, including missing root causes and verification results, when relevant to the current ticket.
+- Do not infer that a corrective action succeeded unless the retrieved knowledge explicitly confirms successful resolution.
+- Do not add explanations of diagnostic commands unless those explanations are present in the retrieved knowledge.
+- Clearly distinguish documented historical actions from recommended next steps.
+- Do not describe a historical incident as proof of the current ticket's root cause.
 
 CRITICAL RULE FOR HALLUCINATION PREVENTION:
 If the retrieved knowledge is insufficient to accurately answer the query or provide troubleshooting steps, you must explicitly state: "Insufficient data in the knowledge base to resolve this issue."
@@ -649,7 +648,7 @@ Do not guess, assume, or invent any troubleshooting steps, commands, or explanat
         "recommendation": response.content,
         "historicalIncidents": [
             {
-                "id": result.metadata["incident_id"],
+                "id": result.metadata.get("incident_id", result.metadata.get("parent_id", "unknown")),
                 "content": result.page_content,
                 "alarmType": result.metadata.get("alarm_type"),
             }

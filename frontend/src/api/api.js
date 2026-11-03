@@ -319,3 +319,27 @@ export async function troubleshootTicket(ticketNumber) {
 
     return await response.json();
 }
+
+export async function analyzeTicketRca(ticketNumber) {
+    const response = await authenticatedFetch(
+        `${API_BASE}/rca/${ticketNumber}`
+    );
+
+    if (!response.ok) {
+        if (response.status === 401) {
+            throw new Error("UNAUTHORIZED");
+        }
+
+        let detail = "";
+        try {
+            const data = await response.json();
+            detail = data?.detail || "";
+        } catch {
+            detail = "";
+        }
+
+        throw new Error(detail || "Failed to analyze root cause");
+    }
+
+    return await response.json();
+}

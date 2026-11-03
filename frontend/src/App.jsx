@@ -21,12 +21,14 @@ import ToastHost from "./components/ToastHost";
 import ReopenTicketModal from "./modals/ReopenTicketModal";
 import ConfirmReopenModal from "./modals/ConfirmReopenModal";
 import RAGEvaluation from "./components/RAGEvaluation";
+import AIRca from "./components/AIRca";
 import{
     fetchTickets as getTickets,
     fetchNotifications as getNotifications,
     closeTicket as closeTicketAPI,
     upgradeTicket as upgradeTicketAPI,
     troubleshootTicket as troubleshootTicketAPI,
+    analyzeTicketRca,
     acknowledgeTicket as acknowledgeTicketAPI,
     reopenTicket as reopenTicketAPI,
     checkAuth,
@@ -54,6 +56,10 @@ function App() {
     const [notifications, setNotifications] = useState([]);
     const [loading, setLoading] = useState(true);
     const [backendOnline, setBackendOnline] = useState(true);
+
+    const [rcaResult, setRcaResult] = useState(null);
+    const [rcaLoading, setRcaLoading] = useState(false);
+    const [rcaError, setRcaError] = useState("");
     
     const [searchTerm, setSearchTerm] = useState("");
     const [columnFilters, setColumnFilters] = useState({
@@ -90,7 +96,7 @@ function App() {
 
     const getPageFromHash = () => {
         const hash = window.location.hash.replace(/^#\/?/, "");
-        return ["dashboard", "notifications", "settings", "evaluation", "grafana", "users"].includes(hash)
+        return ["dashboard", "notifications", "settings", "evaluation", "grafana", "users", "ai-rca"].includes(hash)
             ? hash
             : "dashboard";
     };
@@ -334,6 +340,25 @@ function App() {
           });
         } catch (error) {
             setTroubleshootData(prev => ({ ...prev, recommendation: "Could not load troubleshooting recommendation." }));
+        }
+    };
+
+    const openRcaAnalysis = async (ticketNumber) => {
+        setRcaLoading(true);
+        setRcaError("");
+        setRcaResult(null);
+
+        try{
+            const result = await analyzeTicketRca(ticketNumber);
+            setRcaResult(result);
+        } catch (error) {
+            if (error.message === "UNAUTHORIZED") {
+                setRcaError("Your session has expired. Please login again.");
+            } else{
+                setRcaError(error.message || "Failed to analyze root cause.");
+            }
+        } finally {
+            setRcaLoading(false);
         }
     };
 
@@ -675,6 +700,16 @@ function App() {
                     )}
 
                     {activePage === "users" && <UserManagement />}
+
+                    {activePage === "ai-rca" && (
+                        <AIRca
+                            tickets={tickets}
+                            rcaResult={rcaResult}
+                            rcaLoading={rcaLoading}
+                            rcaError={rcaError}
+                            onAnalyse={openRcaAnalysis}
+                        />
+                    )}
 
                 </main>
             </div>

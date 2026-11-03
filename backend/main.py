@@ -2,6 +2,7 @@ from fastapi import FastAPI , HTTPException, Depends , APIRouter
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from backend.rag import troubleshoot_alarm, _build_vector_store , _get_llm, _get_reranker, refresh_vector_store
+from backend.rca import analyze_root_cause
 from datetime import datetime
 from sqlalchemy.orm import Session
 from backend.database import get_db
@@ -589,6 +590,61 @@ def troubleshoot(
         "recommendation": result["recommendation"],
         "historicalIncidents": result["historicalIncidents"]
     }
+
+@app.get("/rca/{ticket_number}")
+def analyze_ticket_rca(
+    ticket_number: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    #find the ticket in db
+    ticket = (
+        db.query(Ticket)
+        .filter(Ticket.ticket_number == ticket_number)
+        .first()
+    )
+
+    if not ticket:
+        raise HTTPException(
+            status_code=404,
+            detail="Ticket not found"
+        )
+
+    #RCA is allowed only for closed P1/P2 tickets.
+    if str(ticket.status).upper() != "CLOSED":
+        raise HTTPException(
+            status_code=409,
+            detail="RCA is available only for closed tickets."
+        )
+
+    if str(ticket.priority).upper() not in ("P1", "P2"):
+        raise HTTPException(
+            status_code=409,
+            detail="RCA is available only for tickets closed at priority P1 or P2."
+        )
+    
+    try:
+        result = analyze_root_cause(
+            ticket_number=ticket.ticket_number,
+            alarm_type=ticket.alarm_type,
+            node=ticket.node,
+            occurrence_count=ticket.occurrence_count,
+            users_impacted=ticket.users_impacted,
+            severity=ticket.severity,
+            threshold_breached=ticket.threshold_breached,
+            impact_level=ticket.impact_level,
+            priority=ticket.priority,
+            assigned_team=ticket.team.name if ticket.team else None,
+        )
+
+        return result
+
+    except Exception:
+        logger.exception("RCA analysis failed")
+        raise HTTPException(
+            status_code=500,
+            detail="RCA Analysis failed, Please try again later."
+        )
 
 @app.post("/api/evaluate/run")
 def run_evaluate_endpoint(

@@ -13,6 +13,7 @@ export default defineConfig({
       '/tickets': 'http://localhost:8001',
       '/notifications': 'http://localhost:8001',
       '/troubleshoot': 'http://localhost:8001',
+      '/rca': 'http://localhost:8001',
       '/api': 'http://localhost:8001'
     }
   }
